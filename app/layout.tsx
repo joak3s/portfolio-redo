@@ -6,6 +6,7 @@ import { ThemeProvider } from "./components/theme-provider"
 import Navbar from "./components/navbar"
 import { ColorSchemeScript, MantineProvider } from '@mantine/core'
 import '@mantine/core/styles.css'
+import { theme } from './styles/mantine/theme'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -49,7 +50,7 @@ export default function RootLayout({
         <ColorSchemeScript />
       </head>
       <body className={`${inter.className} antialiased`}>
-        <MantineProvider>
+        <MantineProvider theme={theme}>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange={false}>
             <div className="min-h-screen bg-background text-foreground">
               <Navbar />

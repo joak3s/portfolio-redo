@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input"
 import { ChevronDown } from "lucide-react"
 import { HomeCarouselSection } from "@/components/home-carousel-section"
 import { useProjects } from "@/hooks/use-projects"
+import { ExampleCard } from "@/components/example-card"
+import { Container, Grid } from '@mantine/core'
 
 export default function Home() {
   const [message, setMessage] = useState("")
-  const { projects, isLoading } = useProjects()
+  useProjects()
 
   const quickPrompts = [
     { text: "Tell me about your case studies", action: () => {} },
@@ -66,7 +68,16 @@ export default function Home() {
         </motion.div>
       </div>
 
-
+      <Container size="lg" py="xl">
+        <Grid>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <ExampleCard />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <ExampleCard />
+          </Grid.Col>
+        </Grid>
+      </Container>
     </div>
   )
 }

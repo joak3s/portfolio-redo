@@ -1,106 +1,70 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-import Particles from "react-tsparticles"
-import { loadSlim } from "tsparticles-slim"
-import type { Container, Engine } from "tsparticles-engine"
+import { motion } from "framer-motion"
+import { useEffect, useState } from "react"
 
-export default function ParticleBackground() {
+interface Particle {
+  id: number
+  x: number
+  y: number
+  size: number
+  duration: number
+  delay: number
+}
+
+export function ParticleBackground() {
   const { theme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const [particles, setParticles] = useState<Particle[]>([])
 
   useEffect(() => {
-    setMounted(true)
+    // Generate random particles
+    const newParticles: Particle[] = Array.from({ length: 100 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 4 + 2, // Increased size range (2-6px)
+      duration: Math.random() * 15 + 15, // Longer duration (15-30s)
+      delay: Math.random() * 5,
+    }))
+    setParticles(newParticles)
   }, [])
-
-  const particlesInit = useCallback(async (engine: Engine) => {
-    await loadSlim(engine)
-  }, [])
-
-  const particlesLoaded = useCallback(async (container: Container | undefined) => {
-    // Container loaded
-  }, [])
-
-  if (!mounted) return null
-
-  const isDarkMode = theme === "dark"
 
   return (
-    <Particles
-      id="tsparticles"
-      init={particlesInit}
-      loaded={particlesLoaded}
-      className="w-full h-full"
-      options={{
-        fullScreen: {
-          enable: false,
-        },
-        fpsLimit: 60,
-        interactivity: {
-          events: {
-            onClick: {
-              enable: true,
-              mode: "push",
-            },
-            onHover: {
-              enable: true,
-              mode: "repulse",
-            },
-            resize: true,
-          },
-          modes: {
-            push: {
-              quantity: 4,
-            },
-            repulse: {
-              distance: 100,
-              duration: 0.4,
-            },
-          },
-        },
-        particles: {
-          color: {
-            value: isDarkMode ? "#ffffff" : "#000000",
-          },
-          links: {
-            color: isDarkMode ? "#ffffff" : "#000000",
-            distance: 150,
-            enable: true,
-            opacity: isDarkMode ? 0.2 : 0.3,
-            width: 1,
-          },
-          move: {
-            direction: "none",
-            enable: true,
-            outModes: {
-              default: "bounce",
-            },
-            random: false,
-            speed: 2,
-            straight: false,
-          },
-          number: {
-            density: {
-              enable: true,
-              area: 800,
-            },
-            value: 80,
-          },
-          opacity: {
-            value: isDarkMode ? 0.3 : 0.4,
-          },
-          shape: {
-            type: "circle",
-          },
-          size: {
-            value: { min: 1, max: 5 },
-          },
-        },
-        detectRetina: true,
-      }}
-      aria-hidden="true"
-    />
+    <div className="fixed inset-0 pointer-events-none">
+      {particles.map((particle) => (
+        <motion.div
+          key={particle.id}
+          className={`absolute rounded-full ${
+            theme === 'dark' ? 'bg-white/20' : 'bg-black/10' // Increased opacity
+          }`}
+          style={{
+            width: particle.size,
+            height: particle.size,
+            left: `${particle.x}%`,
+            top: `${particle.y}%`,
+          }}
+          animate={{
+            x: [
+              `${particle.x}%`,
+              `${particle.x + (Math.random() - 0.5) * 40}%`, // Increased movement range
+              `${particle.x}%`,
+            ],
+            y: [
+              `${particle.y}%`,
+              `${particle.y + (Math.random() - 0.5) * 40}%`, // Increased movement range
+              `${particle.y}%`,
+            ],
+          }}
+          transition={{
+            duration: particle.duration,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: particle.delay,
+          }}
+        />
+      ))}
+    </div>
   )
 }
 
