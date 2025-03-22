@@ -1,77 +1,61 @@
-# Portfolio Project
+# Jordan Oakes Portfolio
 
-A modern, performant portfolio website built with Next.js 15 and React 18.
+A modern, performant portfolio website built with Next.js 15, TypeScript, and Tailwind CSS.
 
-## Tech Stack
+## 🚀 Features
 
-- **Framework:** Next.js 15
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **UI Components:** Shadcn UI
-- **Animations:** Framer Motion
-- **State Management:** React Hooks
-- **Form Handling:** React Hook Form
-- **Validation:** Zod
-- **Deployment:** Vercel
+- **Interactive Portfolio**: Dynamic showcase of projects and work experience
+- **Playground Section**: Interactive demos and experiments
+- **Journey Timeline**: Visual representation of professional experience
+- **Contact System**: Modern contact form with validation
+- **Admin Dashboard**: Protected admin area for content management
+- **Responsive Design**: Mobile-first approach with modern UI components
+- **Performance Optimized**: Server-side rendering with Next.js 15
+- **Accessibility**: WCAG compliant with proper ARIA attributes
+- **Dark Mode**: System-aware theme switching with next-themes
 
-## Project Structure
+## 🛠 Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + Tailwind Typography
+- **Components**: Shadcn UI + Radix UI primitives
+- **Animations**: Framer Motion
+- **Form Handling**: React Hook Form
+- **Validation**: Zod
+- **State Management**: React Context + Hooks
+- **UI Enhancements**: 
+  - Embla Carousel
+  - React Day Picker
+  - React Dropzone
+  - React Resizable Panels
+  - TSParticles
+  - Recharts
+  - Sonner (Toast notifications)
+  - Vaul (Drawer components)
+
+## 🏗 Project Structure
 
 ```
-├── app/
-│   ├── (routes)/           # All route components
-│   ├── components/         # Reusable components
-│   ├── hooks/             # Custom React hooks
-│   ├── lib/              # Utility functions and shared logic
-│   ├── styles/           # Global styles and Tailwind config
-│   └── types/            # TypeScript type definitions
-├── public/               # Static assets
-└── package.json         # Project dependencies and scripts
+├── app/                  # Next.js 15 app directory
+│   ├── admin/           # Admin dashboard
+│   ├── api/             # API routes
+│   ├── carousel-demo/   # Carousel component demos
+│   ├── contact/         # Contact page
+│   ├── featured/        # Featured projects
+│   ├── journey/         # Professional journey
+│   ├── playground/      # Interactive demos
+│   ├── work/           # Work portfolio
+│   ├── layout.tsx      # Root layout
+│   ├── page.tsx        # Home page
+│   ├── error.tsx       # Error boundary
+│   └── loading.tsx     # Loading states
+├── components/          # UI components
+│   ├── ui/             # Shadcn UI components
+│   └── [feature]/      # Feature-specific components
+├── hooks/              # Custom React hooks
+├── lib/               # Utilities and helpers
+├── styles/            # Global styles
+├── data/              # Static data and content
+└── public/            # Static assets
 ```
-
-## Getting Started
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-## Development
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
-
-## Project Features
-
-- Modern UI with Shadcn components
-- Smooth animations with Framer Motion
-- Responsive design with Tailwind CSS
-- Type-safe development with TypeScript
-- Server-side rendering with Next.js
-- Optimized for performance and SEO
-
-## Best Practices
-
-- Use Server Components by default
-- Client Components only when necessary (state, effects)
-- Implement loading states with loading.tsx
-- Handle errors with error.tsx
-- Follow TypeScript best practices
-- Keep components modular and reusable
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License. 

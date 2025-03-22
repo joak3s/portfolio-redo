@@ -1,12 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import "./styles/globals.css"
-import { ThemeProvider } from "./components/theme-provider"
-import Navbar from "./components/navbar"
-import { ColorSchemeScript, MantineProvider } from '@mantine/core'
-import '@mantine/core/styles.css'
-import { theme } from './styles/mantine/theme'
+
+import "@/styles/globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import Navbar from "@/components/navbar"
+
 
 const inter = Inter({ subsets: ["latin"] })
 
