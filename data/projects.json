@@ -39,10 +39,17 @@
     "slug": "modern-day-sniper",
     "images": {
       "thumbnail": {
-        "url": "/projects/modern-day-sniper/thumbnail.jpg",
-        "alt": "Modern Day Sniper dashboard interface"
+        "url": "/projects/modern-day-sniper/gallery-1742616913778-0.png",
+        "alt": "www.moderndaysniper.com_events.png",
+        "isFeatured": true
       },
-      "gallery": []
+      "gallery": [
+        {
+          "url": "/projects/modern-day-sniper/gallery-1742616913778-0.png",
+          "alt": "www.moderndaysniper.com_events.png",
+          "isFeatured": true
+        }
+      ]
     },
     "websiteUrl": "http://www.moderndaysniper.com/",
     "featured": 2,

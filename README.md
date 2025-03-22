@@ -1,66 +1,84 @@
 # Jordan Oakes Portfolio
 
-A modern, performant portfolio website built with Next.js 14, TypeScript, and Tailwind CSS.
+A modern, performant portfolio website built with Next.js 15, TypeScript, and Tailwind CSS.
 
 ## 🚀 Features
 
-- **AI-Powered Interface**: Interactive AI assistant for portfolio exploration
-- **Project Showcase**: Dynamic project carousel with case studies
+- **Interactive Portfolio**: Dynamic showcase of projects and work experience
+- **Playground Section**: Interactive demos and experiments
+- **Journey Timeline**: Visual representation of professional experience
+- **Contact System**: Modern contact form with validation
+- **Admin Dashboard**: Protected admin area for content management
 - **Responsive Design**: Mobile-first approach with modern UI components
-- **Performance Optimized**: Server-side rendering with Next.js 14
+- **Performance Optimized**: Server-side rendering with Next.js 15
 - **Accessibility**: WCAG compliant with proper ARIA attributes
-- **Dark Mode**: System-aware theme switching
+- **Dark Mode**: System-aware theme switching with next-themes
 
 ## 🛠 Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Components**: Shadcn UI
+- **Styling**: Tailwind CSS + Tailwind Typography
+- **Components**: Shadcn UI + Radix UI primitives
 - **Animations**: Framer Motion
 - **Form Handling**: React Hook Form
 - **Validation**: Zod
 - **State Management**: React Context + Hooks
-
-## 📦 Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/portfolio-redo.git
-   ```
-
-2. Install dependencies:
-   ```bash
-   pnpm install
-   ```
-
-3. Create a `.env.local` file:
-   ```env
-   NEXT_PUBLIC_API_URL=your_api_url
-   ```
-
-4. Run the development server:
-   ```bash
-   pnpm dev
-   ```
+- **UI Enhancements**: 
+  - Embla Carousel
+  - React Day Picker
+  - React Dropzone
+  - React Resizable Panels
+  - TSParticles
+  - Recharts
+  - Sonner (Toast notifications)
+  - Vaul (Drawer components)
 
 ## 🏗 Project Structure
 
 ```
-├── app/                  # Next.js 14 app directory
+├── app/                  # Next.js 15 app directory
+│   ├── admin/           # Admin dashboard
 │   ├── api/             # API routes
-│   ├── components/      # Shared components
-│   ├── lib/            # Utilities and helpers
-│   └── [routes]/       # App routes
+│   ├── carousel-demo/   # Carousel component demos
+│   ├── contact/         # Contact page
+│   ├── featured/        # Featured projects
+│   ├── journey/         # Professional journey
+│   ├── playground/      # Interactive demos
+│   ├── work/           # Work portfolio
+│   ├── layout.tsx      # Root layout
+│   ├── page.tsx        # Home page
+│   ├── error.tsx       # Error boundary
+│   └── loading.tsx     # Loading states
 ├── components/          # UI components
 │   ├── ui/             # Shadcn UI components
 │   └── [feature]/      # Feature-specific components
 ├── hooks/              # Custom React hooks
+├── lib/               # Utilities and helpers
 ├── styles/            # Global styles
-└── types/             # TypeScript type definitions
+├── data/              # Static data and content
+└── public/            # Static assets
 ```
 
 ## 🧪 Development
+
+### Prerequisites
+
+- Node.js 18+ and pnpm
+- Git
+
+### Setup
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+3. Copy `.env.example` to `.env` and configure your environment variables
+4. Start the development server:
+   ```bash
+   pnpm dev
+   ```
 
 ### Commands
 
@@ -69,7 +87,6 @@ A modern, performant portfolio website built with Next.js 14, TypeScript, and Ta
 - `pnpm start`: Start production server
 - `pnpm lint`: Run ESLint
 - `pnpm type-check`: Run TypeScript compiler
-- `pnpm format`: Format code with Prettier
 
 ### Code Style
 
