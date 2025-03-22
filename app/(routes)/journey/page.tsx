@@ -56,6 +56,9 @@ export default function JourneyPage() {
     setActiveIndex(index)
   }
 
+  const currentMilestone = milestones[activeIndex]
+  if (!currentMilestone) return null
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background">
       <div className="container py-12">
@@ -135,7 +138,7 @@ export default function JourneyPage() {
                 transition={{ duration: 0.3 }}
                 className="w-full"
               >
-                <TimelineMilestone milestone={milestones[activeIndex]} />
+                <TimelineMilestone milestone={currentMilestone} />
               </motion.div>
             </AnimatePresence>
           </div>
