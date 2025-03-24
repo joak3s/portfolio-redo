@@ -78,10 +78,17 @@
     "slug": "off-the-leash-lifestyle",
     "images": {
       "thumbnail": {
-        "url": "/projects/off-the-leash-lifestyle/thumbnail.jpg",
-        "alt": "Off The Leash Lifestyle website"
+        "url": "/projects/off-the-leash-lifestyle/gallery-1742628429955-0.jpg",
+        "alt": "OTL-Mobile-Desktop-Tablet-Mockup-3.jpg",
+        "isFeatured": true
       },
-      "gallery": []
+      "gallery": [
+        {
+          "url": "/projects/off-the-leash-lifestyle/gallery-1742628429955-0.jpg",
+          "alt": "OTL-Mobile-Desktop-Tablet-Mockup-3.jpg",
+          "isFeatured": true
+        }
+      ]
     },
     "websiteUrl": "https://www.offtheleashlifestyle.com",
     "featured": 3,
@@ -111,10 +118,22 @@
     "slug": "kosei-performance-partners",
     "images": {
       "thumbnail": {
-        "url": "/projects/kosei-performance-partners/thumbnail.jpg",
-        "alt": "Kosei Performance Partners website"
+        "url": "/projects/kosei-performance-partners/gallery-1742628520872-0.png",
+        "alt": "www.koseiperformance.com_ (1).png",
+        "isFeatured": true
       },
-      "gallery": []
+      "gallery": [
+        {
+          "url": "/projects/kosei-performance-partners/gallery-1742628520872-0.png",
+          "alt": "www.koseiperformance.com_ (1).png",
+          "isFeatured": true
+        },
+        {
+          "url": "/projects/kosei-performance-partners/gallery-1742628525744-0.jpg",
+          "alt": "Kosei - Idea Board - Logo Alt.jpg",
+          "isFeatured": false
+        }
+      ]
     },
     "websiteUrl": "https://kosei-performance.webflow.io/",
     "featured": 4,
@@ -241,10 +260,22 @@
     "slug": "ucsc-transfer-admissions",
     "images": {
       "thumbnail": {
-        "url": "/projects/ucsc-transfer-admissions/thumbnail.jpg",
-        "alt": "UCSC Transfer Admissions website redesign"
+        "url": "/projects/ucsc-transfer-admissions/gallery-1742628625126-0.jpg",
+        "alt": "tablet-preview-UCSC.jpg",
+        "isFeatured": true
       },
-      "gallery": []
+      "gallery": [
+        {
+          "url": "/projects/ucsc-transfer-admissions/gallery-1742628625126-0.jpg",
+          "alt": "tablet-preview-UCSC.jpg",
+          "isFeatured": true
+        },
+        {
+          "url": "/projects/ucsc-transfer-admissions/gallery-1742628634554-0.jpg",
+          "alt": "UCSC-Oakes-ipad-Screenshot.jpg",
+          "isFeatured": false
+        }
+      ]
     },
     "websiteUrl": "https://admissions.ucsc.edu/transfer-students",
     "featured": 8,
@@ -271,10 +302,22 @@
     "slug": "aletheia-digital-media",
     "images": {
       "thumbnail": {
-        "url": "/projects/aletheia-digital-media/thumbnail.jpg",
-        "alt": "Aletheia Digital Media website"
+        "url": "/projects/aletheia-digital-media/gallery-1742628704515-0.jpg",
+        "alt": "Aletheia-Our-Work-Post-iPhone-Mockup-Blue.jpg",
+        "isFeatured": true
       },
-      "gallery": []
+      "gallery": [
+        {
+          "url": "/projects/aletheia-digital-media/gallery-1742628704515-0.jpg",
+          "alt": "Aletheia-Our-Work-Post-iPhone-Mockup-Blue.jpg",
+          "isFeatured": true
+        },
+        {
+          "url": "/projects/aletheia-digital-media/gallery-1742628709391-0.png",
+          "alt": "Aletheia Home - Products.png",
+          "isFeatured": false
+        }
+      ]
     },
     "websiteUrl": "https://www.aletheiadigitalmedia.com",
     "featured": 9,
@@ -302,10 +345,17 @@
     "slug": "chiropractic-healthcare",
     "images": {
       "thumbnail": {
-        "url": "/projects/chiropractic-healthcare/thumbnail.jpg",
-        "alt": "Chiropractic Healthcare website"
+        "url": "/projects/chiropractic-healthcare/gallery-1742628801900-0.jpg",
+        "alt": "Chiropractic-Healthcare-iPhone-Social-Post-Mockup.jpg",
+        "isFeatured": true
       },
-      "gallery": []
+      "gallery": [
+        {
+          "url": "/projects/chiropractic-healthcare/gallery-1742628801900-0.jpg",
+          "alt": "Chiropractic-Healthcare-iPhone-Social-Post-Mockup.jpg",
+          "isFeatured": true
+        }
+      ]
     },
     "websiteUrl": "https://www.petrillichiropractic.com/",
     "featured": 10,
@@ -333,10 +383,17 @@
     "slug": "trenchless-pros",
     "images": {
       "thumbnail": {
-        "url": "/projects/trenchless-pros/thumbnail.jpg",
-        "alt": "Trenchless Pros website"
+        "url": "/projects/trenchless-pros/gallery-1742628814058-0.jpg",
+        "alt": "Trenchless-Pros-Tablet-iPhone-Mockup-1.jpg",
+        "isFeatured": true
       },
-      "gallery": []
+      "gallery": [
+        {
+          "url": "/projects/trenchless-pros/gallery-1742628814058-0.jpg",
+          "alt": "Trenchless-Pros-Tablet-iPhone-Mockup-1.jpg",
+          "isFeatured": true
+        }
+      ]
     },
     "websiteUrl": "https://trenchless-pros.webflow.io/",
     "featured": 11,

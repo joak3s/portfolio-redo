@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils"
 interface ProjectCardProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Project data containing title, description, image, and other metadata */
   project: Project
-  /** Optional aspect ratio for the card. Defaults to "portrait" */
-  aspect?: "portrait" | "square"
+  /** Optional aspect ratio for the card. Defaults to "landscape" */
+  aspect?: "landscape" | "square"
   /** Optional width for the card. Defaults to "auto" */
   width?: number
 }
@@ -26,15 +26,17 @@ interface ProjectCardProps extends React.HTMLAttributes<HTMLDivElement> {
  *   project={{
  *     title: "My Project",
  *     description: "Project description",
- *     image: "/path/to/image.jpg"
+ *     images: {
+ *       thumbnail: { url: "/path/to/image.jpg", alt: "Project thumbnail" }
+ *     }
  *   }}
- *   aspect="portrait"
+ *   aspect="landscape"
  * />
  * ```
  */
 export default function ProjectCard({
   project,
-  aspect = "portrait",
+  aspect = "landscape",
   width,
   className,
   ...props
@@ -52,21 +54,44 @@ export default function ProjectCard({
         <div
           className={cn(
             "relative",
-            aspect === "portrait" ? "aspect-[3/4]" : "aspect-square"
+            aspect === "landscape" ? "aspect-[16/9]" : "aspect-square"
           )}
         >
-          {project.image && (
+          {project.images?.thumbnail && (
             <Image
-              src={project.image}
-              alt={project.title}
+              src={project.images.thumbnail.url}
+              alt={project.images.thumbnail.alt || project.title}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
           )}
         </div>
-        <div className="absolute inset-0 bg-black/60 p-4 text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <h3 className="text-lg font-semibold">{project.title}</h3>
-          <p className="mt-2 text-sm text-gray-200">{project.description}</p>
+        <div className="absolute inset-0 bg-black/80 p-6 text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <div className="flex flex-col h-full justify-end">
+            <h3 className="text-xl font-semibold mb-3">{project.title}</h3>
+            <p className="text-sm text-gray-100 mb-4 line-clamp-2">{project.description}</p>
+            {project.tools && project.tools.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {project.tools.slice(0, 3).map((tool) => (
+                  <Badge 
+                    key={tool}
+                    variant="secondary"
+                    className="bg-white/10 text-white hover:bg-white/20"
+                  >
+                    {tool}
+                  </Badge>
+                ))}
+                {project.tools.length > 3 && (
+                  <Badge 
+                    variant="secondary"
+                    className="bg-white/10 text-white hover:bg-white/20"
+                  >
+                    +{project.tools.length - 3} more
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </Link>
     </div>

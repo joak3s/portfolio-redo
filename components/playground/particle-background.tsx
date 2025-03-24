@@ -1,10 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
-import Particles from "react-tsparticles"
-import { loadSlim } from "tsparticles-slim"
-import type { Container, Engine } from "tsparticles-engine"
+import { cn } from "@/lib/utils"
 
 export default function ParticleBackground() {
   const { theme } = useTheme()
@@ -14,93 +12,52 @@ export default function ParticleBackground() {
     setMounted(true)
   }, [])
 
-  const particlesInit = useCallback(async (engine: Engine) => {
-    await loadSlim(engine)
-  }, [])
-
-  const particlesLoaded = useCallback(async (container: Container | undefined) => {
-    // Container loaded
-  }, [])
-
   if (!mounted) return null
 
   const isDarkMode = theme === "dark"
 
   return (
-    <Particles
-      id="tsparticles"
-      init={particlesInit}
-      loaded={particlesLoaded}
-      className="w-full h-full"
-      options={{
-        fullScreen: {
-          enable: false,
-        },
-        fpsLimit: 60,
-        interactivity: {
-          events: {
-            onClick: {
-              enable: true,
-              mode: "push",
-            },
-            onHover: {
-              enable: true,
-              mode: "repulse",
-            },
-            resize: true,
-          },
-          modes: {
-            push: {
-              quantity: 4,
-            },
-            repulse: {
-              distance: 100,
-              duration: 0.4,
-            },
-          },
-        },
-        particles: {
-          color: {
-            value: isDarkMode ? "#ffffff" : "#000000",
-          },
-          links: {
-            color: isDarkMode ? "#ffffff" : "#000000",
-            distance: 150,
-            enable: true,
-            opacity: isDarkMode ? 0.2 : 0.3,
-            width: 1,
-          },
-          move: {
-            direction: "none",
-            enable: true,
-            outModes: {
-              default: "bounce",
-            },
-            random: false,
-            speed: 2,
-            straight: false,
-          },
-          number: {
-            density: {
-              enable: true,
-              area: 800,
-            },
-            value: 80,
-          },
-          opacity: {
-            value: isDarkMode ? 0.3 : 0.4,
-          },
-          shape: {
-            type: "circle",
-          },
-          size: {
-            value: { min: 1, max: 5 },
-          },
-        },
-        detectRetina: true,
-      }}
-      aria-hidden="true"
-    />
+    <div className="fixed inset-0 -z-10 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-background to-background/80" />
+      <div className="absolute inset-0">
+        {Array.from({ length: 50 }).map((_, i) => (
+          <div
+            key={i}
+            className={cn(
+              "absolute rounded-full",
+              isDarkMode ? "bg-white/10" : "bg-black/10"
+            )}
+            style={{
+              width: Math.random() * 4 + 1,
+              height: Math.random() * 4 + 1,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animation: `float ${Math.random() * 20 + 10}s infinite linear`,
+              animationDelay: `${Math.random() * 5}s`,
+            }}
+          />
+        ))}
+      </div>
+      <style jsx>{`
+        @keyframes float {
+          0% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+          25% {
+            transform: translate(10px, 10px) rotate(90deg);
+          }
+          50% {
+            transform: translate(0, 20px) rotate(180deg);
+          }
+          75% {
+            transform: translate(-10px, 10px) rotate(270deg);
+          }
+          100% {
+            transform: translate(0, 0) rotate(360deg);
+          }
+        }
+      `}</style>
+    </div>
   )
 }
 

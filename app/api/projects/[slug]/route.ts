@@ -17,8 +17,9 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
+    const slug = await Promise.resolve(params.slug)
     const projects = await getProjects()
-    const project = projects.find(p => p.slug === params.slug && p.status === 'published')
+    const project = projects.find(p => p.slug === slug && p.status === 'published')
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })

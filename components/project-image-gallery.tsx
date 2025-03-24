@@ -41,7 +41,7 @@ export function ProjectImageGallery({ images, className }: ProjectImageGalleryPr
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {images.map((image, index) => (
           <div
-            key={image.url}
+            key={`${image.url}-${index}`}
             className="relative aspect-[4/3] overflow-hidden rounded-lg cursor-pointer group"
             onClick={() => setSelectedImageIndex(index)}
           >
