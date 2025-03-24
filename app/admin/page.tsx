@@ -104,13 +104,7 @@ export default function AdminPage() {
       },
       featured: 0,
       status: "draft",
-      images: {
-        thumbnail: {
-          url: "",
-          alt: ""
-        },
-        gallery: []
-      },
+      images: [],
       tags: [],
       tools: [],
       websiteUrl: "",
@@ -303,9 +297,9 @@ export default function AdminPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-muted/50">
-                    <TableHead className="w-[50px]"></TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead className="w-[160px]"></TableHead>
+                    <TableHead className="w-[250px]">Name</TableHead>
+                    <TableHead className="w-[450px]">Description</TableHead>
                     <TableHead>Featured</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -315,16 +309,16 @@ export default function AdminPage() {
                   {sortedProjects.map((project) => (
                     <TableRow key={project.id} className="hover:bg-muted/50">
                       <TableCell>
-                        {project.images?.thumbnail?.url ? (
-                          <div className="relative w-10 h-10 rounded-md overflow-hidden border bg-muted">
+                        {project.images?.length > 0 && project.images[0].url ? (
+                          <div className="relative w-28 h-16 rounded-md overflow-hidden border bg-muted">
                             <img
-                              src={project.images.thumbnail.url}
-                              alt={project.images.thumbnail.alt || project.title}
+                              src={project.images[0].url}
+                              alt={project.images[0].alt || project.title}
                               className="object-cover w-full h-full"
                             />
                           </div>
                         ) : (
-                          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center border">
+                          <div className="w-28 h-16 rounded-md bg-muted flex items-center justify-center border">
                             <span className="text-muted-foreground text-xs">No img</span>
                           </div>
                         )}
@@ -332,7 +326,7 @@ export default function AdminPage() {
                       <TableCell className="font-medium">{project.title}</TableCell>
                       <TableCell className="max-w-[200px] truncate text-muted-foreground">{project.description}</TableCell>
                       <TableCell>
-                        {project.featured > 0 ? (
+                        {project.featured && project.featured > 0 ? (
                           <Badge variant="outline" className="font-mono bg-background">
                             {project.featured.toString().padStart(2, '0')}
                           </Badge>
@@ -386,11 +380,11 @@ export default function AdminPage() {
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex items-start gap-3">
-                        {project.images?.thumbnail?.url ? (
+                        {project.images?.length > 0 && project.images[0].url ? (
                           <div className="relative w-12 h-12 rounded-md overflow-hidden border bg-muted shrink-0">
                             <img
-                              src={project.images.thumbnail.url}
-                              alt={project.images.thumbnail.alt || project.title}
+                              src={project.images[0].url}
+                              alt={project.images[0].alt || project.title}
                               className="object-cover w-full h-full"
                             />
                           </div>
@@ -413,7 +407,7 @@ export default function AdminPage() {
                             >
                               {project.status}
                             </Badge>
-                            {project.featured > 0 && (
+                            {project.featured && project.featured > 0 && (
                               <Badge variant="outline" className="font-mono bg-background">
                                 Featured ({project.featured.toString().padStart(2, '0')})
                               </Badge>
@@ -546,14 +540,16 @@ export default function AdminPage() {
                       <Label htmlFor="main_image">Main Image URL</Label>
                       <Input
                         id="main_image"
-                        value={selectedProject.images?.thumbnail?.url || ""}
-                        onChange={(e) => handleInputChange("images", {
-                          ...selectedProject.images,
-                          thumbnail: {
-                            url: e.target.value,
-                            alt: selectedProject.images?.thumbnail?.alt || ""
+                        value={selectedProject.images?.[0]?.url || ""}
+                        onChange={(e) => {
+                          const newImages = [...(selectedProject.images || [])]
+                          if (newImages.length === 0) {
+                            newImages.push({ url: e.target.value, alt: "" })
+                          } else {
+                            newImages[0] = { ...newImages[0], url: e.target.value }
                           }
-                        })}
+                          handleInputChange("images", newImages)
+                        }}
                         placeholder="/images/project.jpg"
                       />
                       <p className="text-xs text-muted-foreground">Leave as is to use a placeholder image</p>
@@ -563,14 +559,16 @@ export default function AdminPage() {
                       <Label htmlFor="thumbnail_alt">Thumbnail Alt Text</Label>
                       <Input
                         id="thumbnail_alt"
-                        value={selectedProject.images?.thumbnail?.alt || ""}
-                        onChange={(e) => handleInputChange("images", {
-                          ...selectedProject.images,
-                          thumbnail: {
-                            ...selectedProject.images?.thumbnail,
-                            alt: e.target.value
+                        value={selectedProject.images?.[0]?.alt || ""}
+                        onChange={(e) => {
+                          const newImages = [...(selectedProject.images || [])]
+                          if (newImages.length === 0) {
+                            newImages.push({ url: "", alt: e.target.value })
+                          } else {
+                            newImages[0] = { ...newImages[0], alt: e.target.value }
                           }
-                        })}
+                          handleInputChange("images", newImages)
+                        }}
                         placeholder="Enter thumbnail alt text"
                       />
                     </div>
@@ -655,13 +653,9 @@ export default function AdminPage() {
                         {selectedProject.id ? (
                           <ProjectImageUpload
                             projectId={selectedProject.id}
-                            images={selectedProject.images?.gallery || []}
+                            images={selectedProject.images || []}
                             onImagesUpdate={(newImages) =>
-                              handleInputChange("images", {
-                                ...selectedProject.images,
-                                gallery: newImages,
-                                thumbnail: newImages[0] || selectedProject.images?.thumbnail
-                              })
+                              handleInputChange("images", newImages)
                             }
                           />
                         ) : (

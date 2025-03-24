@@ -5,10 +5,7 @@
     "description": "Swyvvl aimed to transform the real estate industry by creating a transparent, efficient platform connecting home buyers, sellers, agents, and mortgage lenders. I designed and developed a responsive, user-friendly website featuring MLS listings, commission-sharing tools, and instant connections with agents and lenders, all while ensuring legal compliance and aligning with Swyvvl's innovative vision.",
     "slug": "swyvvl-real-estate-platform",
     "images": [
-      {
-        "url": "/projects/swyvvl-real-estate-platform/thumbnail.jpg",
-        "alt": "Swyvvl Real Estate Platform interface"
-      }
+      "/projects/swyvvl-real-estate-platform/thumbnail.jpg"
     ],
     "websiteUrl": "https://www.swyvvl.com/",
     "featured": 1,
@@ -37,14 +34,8 @@
     "description": "Collaborated on a modern ecommerce frontend and later designed a membership dashboard for Modern Day Sniper (MDS), enhancing their platform with user-focused design and AI-driven features to boost engagement and learning.",
     "slug": "modern-day-sniper",
     "images": [
-      {
-        "url": "/projects/modern-day-sniper/gallery-1742616913778-0.png",
-        "alt": "www.moderndaysniper.com_events.png"
-      },
-      {
-        "url": "/projects/modern-day-sniper/gallery-1742789300879-0.png",
-        "alt": "www.moderndaysniper.com_podcast.png"
-      }
+      "/projects/modern-day-sniper/gallery-1742616913778-0.png",
+      "/projects/modern-day-sniper/gallery-1742789300879-0.png"
     ],
     "websiteUrl": "http://www.moderndaysniper.com/",
     "featured": 2,
@@ -72,10 +63,7 @@
     "description": "I transformed Off The Leash Lifestyle—founded by pro paintball players—into a vibrant e-commerce and membership hub. I revamped their outdated website into a modern, action-driven platform for merchandise, training, and coaching sales, then expanded it with Basecamp, an exclusive subscription program offering tailored fitness and wellness resources.",
     "slug": "off-the-leash-lifestyle",
     "images": [
-      {
-        "url": "/projects/off-the-leash-lifestyle/gallery-1742791694376-0.jpg",
-        "alt": "OTL-Mobile-Desktop-Tablet-Mockup-3.jpg"
-      }
+      "/projects/off-the-leash-lifestyle/gallery-1742628429955-0.jpg"
     ],
     "websiteUrl": "https://www.offtheleashlifestyle.com",
     "featured": 3,
@@ -104,14 +92,8 @@
     "description": "I crafted a unique, culturally resonant brand and responsive website for Kosei Performance Partners, a mentorship agency for professional athletes. Inspired by their Japanese roots, I designed a Kanji-inspired logo and built a mobile-friendly platform showcasing athlete profiles, partnerships, and video highlights.",
     "slug": "kosei-performance-partners",
     "images": [
-      {
-        "url": "/projects/kosei-performance-partners/gallery-1742628520872-0.png",
-        "alt": "www.koseiperformance.com_ (1).png"
-      },
-      {
-        "url": "/projects/kosei-performance-partners/gallery-1742628525744-0.jpg",
-        "alt": "Kosei - Idea Board - Logo Alt.jpg"
-      }
+      "/projects/kosei-performance-partners/gallery-1742628520872-0.png",
+      "/projects/kosei-performance-partners/gallery-1742628525744-0.jpg"
     ],
     "websiteUrl": "https://kosei-performance.webflow.io/",
     "featured": 4,
@@ -141,10 +123,7 @@
     "description": "Designed and developed a modern, cohesive brand identity and website for Schmitt Automotive—a specialized German car repair shop—boosting engagement and establishing trust through user-focused design and streamlined functionality.",
     "slug": "schmitt-automotive",
     "images": [
-      {
-        "url": "/projects/schmitt-automotive/thumbnail.jpg",
-        "alt": "Schmitt Automotive website"
-      }
+      "/projects/schmitt-automotive/thumbnail.jpg"
     ],
     "websiteUrl": "https://www.schmittautomotive.com/",
     "featured": 5,
@@ -172,10 +151,7 @@
     "description": "I designed and developed a responsive website for Flourish, a women's growth cohort built on the Townsend Leadership Program (TLP) framework. Starting with a personal coaching site for Natalie Dillow, I evolved it into a comprehensive platform for a team of three coaches, showcasing their expertise, the 10-month program, and a streamlined sign-up process.",
     "slug": "flourish",
     "images": [
-      {
-        "url": "/projects/flourish/thumbnail.jpg",
-        "alt": "Flourish website"
-      }
+      "/projects/flourish/thumbnail.jpg"
     ],
     "websiteUrl": "https://www.flourish-co.com/",
     "featured": 6,
@@ -203,10 +179,7 @@
     "description": "Designed a polished logo with variations and a CMS-driven website for River City Travel Ball, simplifying tournament management for a tech-light client while boosting sign-ups with a sporty, user-friendly frontend.",
     "slug": "river-city-travel-ball",
     "images": [
-      {
-        "url": "/projects/river-city-travel-ball/thumbnail.jpg",
-        "alt": "River City Travel Ball website"
-      }
+      "/projects/river-city-travel-ball/thumbnail.jpg"
     ],
     "websiteUrl": "http://www.rivercitytravelball.com/",
     "featured": 7,
@@ -234,14 +207,8 @@
     "description": "In collaboration with a team of five undergraduate transfer students, we embarked on a mission to redesign the UCSC Transfer Admissions website. Our goal was to create a high-fidelity prototype that would later be transformed into a user-centric website. Through extensive research, interviews, usability testing, and wireframing, we identified pain-points and user needs, ultimately delivering four webpages that empowered transfer students with critical information.",
     "slug": "ucsc-transfer-admissions",
     "images": [
-      {
-        "url": "/projects/ucsc-transfer-admissions/gallery-1742628625126-0.jpg",
-        "alt": "tablet-preview-UCSC.jpg"
-      },
-      {
-        "url": "/projects/ucsc-transfer-admissions/gallery-1742628634554-0.jpg",
-        "alt": "UCSC-Oakes-ipad-Screenshot.jpg"
-      }
+      "/projects/ucsc-transfer-admissions/gallery-1742628625126-0.jpg",
+      "/projects/ucsc-transfer-admissions/gallery-1742628634554-0.jpg"
     ],
     "websiteUrl": "https://admissions.ucsc.edu/transfer-students",
     "featured": 8,
@@ -267,14 +234,8 @@
     "description": "Redesigned the website for Aletheia Digital Media as my first project as an employee, crafting a vibrant, user-centered platform with interactive prototypes and custom visuals—kickstarting a lasting partnership.",
     "slug": "aletheia-digital-media",
     "images": [
-      {
-        "url": "/projects/aletheia-digital-media/gallery-1742628704515-0.jpg",
-        "alt": "Aletheia-Our-Work-Post-iPhone-Mockup-Blue.jpg"
-      },
-      {
-        "url": "/projects/aletheia-digital-media/gallery-1742628709391-0.png",
-        "alt": "Aletheia Home - Products.png"
-      }
+      "/projects/aletheia-digital-media/gallery-1742628704515-0.jpg",
+      "/projects/aletheia-digital-media/gallery-1742628709391-0.png"
     ],
     "websiteUrl": "https://www.aletheiadigitalmedia.com",
     "featured": 9,
@@ -301,10 +262,7 @@
     "description": "I was tasked with creating a website for a chiropractic clinic that had previously only had a presence on Google Business. Through research and iteration on the design, I was able to create a website that matched the clinic's brand identity and provided users with clear, concise information about the services offered at the clinic.",
     "slug": "chiropractic-healthcare",
     "images": [
-      {
-        "url": "/projects/chiropractic-healthcare/gallery-1742628801900-0.jpg",
-        "alt": "Chiropractic-Healthcare-iPhone-Social-Post-Mockup.jpg"
-      }
+      "/projects/chiropractic-healthcare/gallery-1742628801900-0.jpg"
     ],
     "websiteUrl": "https://www.petrillichiropractic.com/",
     "featured": 10,
@@ -331,10 +289,7 @@
     "description": "Trenchless Pros required a clean and informative website to showcase their expertise in trenchless sewer solutions. The project successfully delivered a visually appealing logo, vector graphics, and motion graphics, creating an engaging and user-friendly website that effectively communicated their services and benefits.",
     "slug": "trenchless-pros",
     "images": [
-      {
-        "url": "/projects/trenchless-pros/gallery-1742628814058-0.jpg",
-        "alt": "Trenchless-Pros-Tablet-iPhone-Mockup-1.jpg"
-      }
+      "/projects/trenchless-pros/gallery-1742628814058-0.jpg"
     ],
     "websiteUrl": "https://trenchless-pros.webflow.io/",
     "featured": 11,

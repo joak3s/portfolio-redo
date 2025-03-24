@@ -49,16 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
     }
 
     // Update project with new images
-    project.images.gallery = [...(project.images.gallery || []), ...uploadedImages]
-    
-    // If no thumbnail exists, use the first uploaded image
-    if (!project.images.thumbnail?.url && uploadedImages.length > 0) {
-      project.images.thumbnail = {
-        url: uploadedImages[0].url,
-        alt: uploadedImages[0].alt
-      }
-    }
-
+    project.images = [...(project.images || []), ...uploadedImages]
     await saveProjects(projects)
 
     return NextResponse.json(uploadedImages)
@@ -81,13 +72,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { slug:
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Remove image from gallery
-    project.images.gallery = project.images.gallery.filter(img => img.url !== imageUrl)
-
-    // If the deleted image was the thumbnail, update thumbnail to first gallery image or clear it
-    if (project.images.thumbnail?.url === imageUrl) {
-      project.images.thumbnail = project.images.gallery[0] || { url: '', alt: '' }
-    }
+    // Remove image from images array
+    project.images = project.images.filter(img => img.url !== imageUrl)
 
     // Delete the actual file
     const filePath = path.join(process.cwd(), 'public', new URL(imageUrl).pathname)

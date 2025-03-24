@@ -1,129 +1,137 @@
-# Jordan Oakes Portfolio
+# Portfolio Website
 
-A modern, performant portfolio website built with Next.js 15, TypeScript, and Tailwind CSS.
+A modern, performant portfolio website built with Next.js 15 and React 19, showcasing my work and journey as a developer.
 
-## 🚀 Features
+## Tech Stack
 
-- **Interactive Portfolio**: Dynamic showcase of projects and work experience
-- **Playground Section**: Interactive demos and experiments
-- **Journey Timeline**: Visual representation of professional experience
-- **Contact System**: Modern contact form with validation
-- **Admin Dashboard**: Protected admin area for content management
-- **Responsive Design**: Mobile-first approach with modern UI components
-- **Performance Optimized**: Server-side rendering with Next.js 15
-- **Accessibility**: WCAG compliant with proper ARIA attributes
-- **Dark Mode**: System-aware theme switching with next-themes
+- **Framework:** Next.js 15 with App Router
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **UI Components:** 
+  - Radix UI (Accessible primitives)
+  - Shadcn UI (Beautiful, accessible components)
+- **Animations:** Framer Motion
+- **Form Handling:** React Hook Form with Zod validation
+- **State Management:** React Hooks
+- **Deployment:** Vercel
 
-## 🛠 Tech Stack
+## Features
 
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + Tailwind Typography
-- **Components**: Shadcn UI + Radix UI primitives
-- **Animations**: Framer Motion
-- **Form Handling**: React Hook Form
-- **Validation**: Zod
-- **State Management**: React Context + Hooks
-- **UI Enhancements**: 
-  - Embla Carousel
-  - React Day Picker
-  - React Dropzone
-  - React Resizable Panels
-  - TSParticles
-  - Recharts
-  - Sonner (Toast notifications)
-  - Vaul (Drawer components)
+- 🎨 Modern, responsive design
+- ⚡ Server-side rendering with Next.js
+- 🎭 Dark/Light mode support
+- 🖼️ Project showcase with image galleries
+- 📱 Mobile-first approach
+- ♿ Accessibility-first components
+- 🚀 Optimized performance
+- 📝 Blog-like journey section
+- 🎮 Interactive playground
+- 📬 Contact form
 
-## 🏗 Project Structure
+## Project Structure
 
+### API Routes
+
+The project uses Next.js API routes for handling data operations:
+
+#### Public Routes
+- `/api/projects` - List all published projects
+- `/api/projects/[slug]` - Get a single project by slug
+
+#### Admin Routes
+- `/api/admin/projects` - List all projects (including drafts) and create new projects
+- `/api/admin/projects/[id]` - Get, update, or delete a specific project by ID
+
+### Image Storage
+
+Project images are stored in the `/public/projects` directory with the following structure:
 ```
-├── app/                  # Next.js 15 app directory
-│   ├── admin/           # Admin dashboard
-│   ├── api/             # API routes
-│   ├── carousel-demo/   # Carousel component demos
-│   ├── contact/         # Contact page
-│   ├── featured/        # Featured projects
-│   ├── journey/         # Professional journey
-│   ├── playground/      # Interactive demos
-│   ├── work/           # Work portfolio
-│   ├── layout.tsx      # Root layout
-│   ├── page.tsx        # Home page
-│   ├── error.tsx       # Error boundary
-│   └── loading.tsx     # Loading states
-├── components/          # UI components
-│   ├── ui/             # Shadcn UI components
-│   └── [feature]/      # Feature-specific components
-├── hooks/              # Custom React hooks
-├── lib/               # Utilities and helpers
-├── styles/            # Global styles
-├── data/              # Static data and content
-└── public/            # Static assets
+public/
+  projects/
+    project-slug/
+      image1.jpg
+      image2.jpg
+      ...
 ```
 
-## 🧪 Development
+The first image in the array is automatically used as the project thumbnail.
 
-### Prerequisites
+### Data Storage
 
-- Node.js 18+ and pnpm
-- Git
+Project data is stored in `/public/data/projects.json`. This file is automatically created when needed.
 
-### Setup
+```
+├── app/                    # Next.js 15 App Router
+│   ├── (routes)/          # Route components
+│   ├── api/               # API routes
+│   ├── admin/             # Admin dashboard
+│   ├── journey/           # Journey/blog section
+│   ├── playground/        # Interactive demos
+│   └── work/              # Project showcase
+├── components/            # Reusable components
+├── data/                  # Static data and content
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utility functions
+├── public/               # Static assets
+└── styles/               # Global styles
+```
 
-1. Clone the repository
+## Getting Started
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/joak3s/portfolio-redo.git
+   ```
+
 2. Install dependencies:
    ```bash
+   npm install
+   # or
    pnpm install
    ```
-3. Copy `.env.example` to `.env` and configure your environment variables
-4. Start the development server:
+
+3. Set up environment variables:
    ```bash
+   cp .env.example .env.local
+   ```
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   # or
    pnpm dev
    ```
 
-### Commands
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- `pnpm dev`: Start development server
-- `pnpm build`: Build production bundle
-- `pnpm start`: Start production server
-- `pnpm lint`: Run ESLint
-- `pnpm type-check`: Run TypeScript compiler
+## Development
 
-### Code Style
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
 
+## Best Practices
+
+- Use Server Components by default
+- Client Components only when necessary (state, effects)
+- Implement loading states with `loading.tsx`
+- Handle errors with `error.tsx`
 - Follow TypeScript best practices
-- Use functional components
-- Implement proper error boundaries
-- Add JSDoc comments for complex functions
-- Follow the Airbnb Style Guide
+- Keep components modular and reusable
 
-## 🚀 Deployment
+## Contributing
 
-The site is configured for deployment on Vercel:
-
-1. Connect your GitHub repository to Vercel
-2. Configure environment variables
-3. Deploy!
-
-## 📝 Contributing
+While this is a personal portfolio project, suggestions and feedback are welcome! Please feel free to:
 
 1. Fork the repository
 2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a pull request
+3. Submit a pull request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
-## 👤 Author
+## Contact
 
-**Jordan Oakes**
-- Website: [jordanoakes.com](https://jordanoakes.com)
-- GitHub: [@yourusername](https://github.com/yourusername)
-
-## 🙏 Acknowledgments
-
-- [Shadcn UI](https://ui.shadcn.com/) for the component library
-- [Vercel](https://vercel.com) for hosting
-- [Next.js](https://nextjs.org) team for the amazing framework 
+Feel free to reach out through the contact form on the website or directly via GitHub.

@@ -1,17 +1,22 @@
 import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { Project, ProjectUpdate } from '@/lib/types'
+import { Project } from '@/lib/types'
 
-const dataFilePath = path.join(process.cwd(), 'data', 'projects.json')
+const dataFilePath = path.join(process.cwd(), 'public', 'data', 'projects.json')
 const projectsDirectory = path.join(process.cwd(), 'public', 'projects')
 
 async function getProjects(): Promise<Project[]> {
-  const data = await fs.readFile(dataFilePath, 'utf8')
-  return JSON.parse(data)
+  try {
+    const data = await fs.readFile(dataFilePath, 'utf8')
+    return JSON.parse(data)
+  } catch (error) {
+    return []
+  }
 }
 
 async function saveProjects(projects: Project[]): Promise<void> {
+  await fs.mkdir(path.dirname(dataFilePath), { recursive: true })
   await fs.writeFile(dataFilePath, JSON.stringify(projects, null, 2))
 }
 
@@ -23,13 +28,14 @@ export async function GET(
   try {
     const projects = await getProjects()
     const project = projects.find(p => p.id === params.id)
-
+    
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
     return NextResponse.json(project)
   } catch (error) {
+    console.error('Error fetching project:', error)
     return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 })
   }
 }
@@ -40,25 +46,26 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const update: ProjectUpdate = await request.json()
+    const body = await request.json()
     const projects = await getProjects()
     
-    const index = projects.findIndex(p => p.id === params.id)
-    if (index === -1) {
+    const projectIndex = projects.findIndex(p => p.id === params.id)
+    if (projectIndex === -1) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
-    
+
     const updatedProject = {
-      ...projects[index],
-      ...update,
+      ...projects[projectIndex],
+      ...body,
       updatedAt: new Date().toISOString()
     }
-    
-    projects[index] = updatedProject
+
+    projects[projectIndex] = updatedProject
     await saveProjects(projects)
     
     return NextResponse.json(updatedProject)
   } catch (error) {
+    console.error('Error updating project:', error)
     return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
   }
 }
@@ -75,16 +82,21 @@ export async function DELETE(
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
+
+    const filteredProjects = projects.filter(p => p.id !== params.id)
+    await saveProjects(filteredProjects)
     
-    // Delete project directory and its contents
+    // Delete project directory and all its contents
     const projectDir = path.join(projectsDirectory, project.slug)
-    await fs.rm(projectDir, { recursive: true, force: true })
-    
-    const updatedProjects = projects.filter(p => p.id !== params.id)
-    await saveProjects(updatedProjects)
+    try {
+      await fs.rm(projectDir, { recursive: true, force: true })
+    } catch (error) {
+      console.error('Error deleting project directory:', error)
+    }
     
     return NextResponse.json({ success: true })
   } catch (error) {
+    console.error('Error deleting project:', error)
     return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 })
   }
 } 

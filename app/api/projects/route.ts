@@ -38,10 +38,7 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       publishedAt: new Date().toISOString(),
       status: 'draft',
-      images: {
-        thumbnail: body.images.thumbnail,
-        gallery: body.images.gallery || []
-      }
+      images: body.images || []
     }
     
     await saveProjects([...projects, newProject])

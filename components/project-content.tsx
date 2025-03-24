@@ -115,10 +115,7 @@ export function ProjectContent({ slug }: ProjectContentProps) {
 
         {/* Project Images */}
         <ProjectImageGallery 
-          images={[
-            project.images.thumbnail,
-            ...(project.images.gallery || [])
-          ].filter(img => img.url)}
+          images={project.images.filter(img => img.url)}
           className="mb-8"
         />
 

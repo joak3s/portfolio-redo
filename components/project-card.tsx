@@ -57,10 +57,10 @@ export default function ProjectCard({
             aspect === "landscape" ? "aspect-[16/9]" : "aspect-square"
           )}
         >
-          {project.images?.thumbnail && (
+          {project.images?.[0] && (
             <Image
-              src={project.images.thumbnail.url}
-              alt={project.images.thumbnail.alt || project.title}
+              src={project.images[0].url}
+              alt={project.images[0].alt || project.title}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
