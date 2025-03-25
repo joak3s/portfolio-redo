@@ -35,11 +35,14 @@ if git diff --cached --quiet; then
     error "No changes to commit. Make some changes first!"
 fi
 
-# Prompt for commit message
-read -p "Enter commit message: " commit_message
-
+# Get commit message from command line argument or prompt
+commit_message="$1"
 if [ -z "$commit_message" ]; then
-    error "Commit message cannot be empty"
+    # If no argument provided, prompt for commit message
+    read -p "Enter commit message: " commit_message
+    if [ -z "$commit_message" ]; then
+        error "Commit message cannot be empty"
+    fi
 fi
 
 # Commit changes
