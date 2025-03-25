@@ -1,19 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import path from 'path'
-import { Project, ProjectImage } from '@/lib/types'
-
-const dataFilePath = path.join(process.cwd(), 'data', 'projects.json')
-const projectsDirectory = path.join(process.cwd(), 'public', 'projects')
-
-async function getProjects(): Promise<Project[]> {
-  const data = await fs.readFile(dataFilePath, 'utf8')
-  return JSON.parse(data)
-}
-
-async function saveProjects(projects: Project[]): Promise<void> {
-  await fs.writeFile(dataFilePath, JSON.stringify(projects, null, 2))
-}
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ProjectImage } from '@/lib/types'
 
 export async function POST(
   request: NextRequest,
@@ -49,19 +36,19 @@ export async function POST(
       )
     }
 
-    const projects = await getProjects()
-    const project = projects.find(p => p.id === projectId)
+    // Verify project exists
+    const { data: project, error: projectError } = await supabaseAdmin
+      .from('projects')
+      .select('slug')
+      .eq('id', projectId)
+      .single()
 
-    if (!project) {
+    if (projectError || !project) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       )
     }
-
-    // Create project directory if it doesn't exist
-    const projectDir = path.join(projectsDirectory, project.slug)
-    await fs.mkdir(projectDir, { recursive: true })
 
     const newImages: ProjectImage[] = []
 
@@ -72,42 +59,52 @@ export async function POST(
       const alt = alts[i]
 
       // Generate unique filename
-      const extension = path.extname(file.name)
-      const filename = `gallery-${Date.now()}-${i}${extension}`
-      const filepath = path.join(projectDir, filename)
-      const publicPath = `/projects/${project.slug}/${filename}`
+      const timestamp = Date.now()
+      const extension = file.name.split('.').pop()
+      const filename = `${project.slug}/gallery-${timestamp}-${i}.${extension}`
 
-      // Save file
-      const bytes = await file.arrayBuffer()
-      await fs.writeFile(filepath, Buffer.from(bytes))
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabaseAdmin
+        .storage
+        .from('projects')
+        .upload(filename, file, {
+          contentType: file.type,
+          upsert: true
+        })
+
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError)
+        continue
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabaseAdmin
+        .storage
+        .from('projects')
+        .getPublicUrl(filename)
 
       // Add to images array
-      newImages.push({
-        url: publicPath,
+      const imageData = {
+        url: publicUrl,
         alt: alt || file.name,
-        caption: caption || undefined,
-        isFeatured: i === 0 && !project.images.gallery?.length // First image is featured only if no other images exist
-      })
-    }
+        caption: caption || undefined
+      }
+      newImages.push(imageData)
 
-    // Update project data
-    if (!project.images.gallery) {
-      project.images.gallery = []
-    }
-    project.images.gallery = [...project.images.gallery, ...newImages]
+      // Insert image record into database
+      const { error: dbError } = await supabaseAdmin
+        .from('project_images')
+        .insert({
+          project_id: projectId,
+          url: publicUrl,
+          alt: alt || file.name,
+          caption: caption
+        })
 
-    // If no thumbnail exists, use the first uploaded image
-    if (!project.images.thumbnail?.url && newImages.length > 0) {
-      project.images.thumbnail = {
-        url: newImages[0].url,
-        alt: newImages[0].alt
+      if (dbError) {
+        console.error('Error saving image to database:', dbError)
       }
     }
-
-    // Save updated project data
-    const projectIndex = projects.findIndex(p => p.id === projectId)
-    projects[projectIndex] = project
-    await saveProjects(projects)
 
     return NextResponse.json(newImages)
   } catch (error) {
@@ -135,46 +132,48 @@ export async function DELETE(
       )
     }
 
-    const projects = await getProjects()
-    const project = projects.find(p => p.id === projectId)
+    // Get project slug
+    const { data: project, error: projectError } = await supabaseAdmin
+      .from('projects')
+      .select('slug')
+      .eq('id', projectId)
+      .single()
 
-    if (!project) {
+    if (projectError || !project) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       )
     }
 
-    // Remove file from filesystem
-    const filename = path.basename(imageUrl)
-    const filepath = path.join(projectsDirectory, project.slug, filename)
-    
-    try {
-      await fs.unlink(filepath)
-    } catch (error) {
-      console.error('Error deleting file:', error)
-      // Continue even if file doesn't exist
-    }
+    // Delete image from storage
+    const filename = imageUrl.split('/').pop()
+    if (filename) {
+      const storagePath = `${project.slug}/${filename}`
+      const { error: storageError } = await supabaseAdmin
+        .storage
+        .from('projects')
+        .remove([storagePath])
 
-    // Update project data
-    if (project.images.thumbnail?.url === imageUrl) {
-      // If deleting thumbnail, replace with first gallery image or empty
-      project.images.thumbnail = project.images.gallery?.[0] || {
-        url: '',
-        alt: ''
+      if (storageError) {
+        console.error('Error deleting file from storage:', storageError)
       }
     }
-    
-    if (project.images.gallery) {
-      project.images.gallery = project.images.gallery.filter(
-        img => img.url !== imageUrl
+
+    // Delete image record from database
+    const { error: dbError } = await supabaseAdmin
+      .from('project_images')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('url', imageUrl)
+
+    if (dbError) {
+      console.error('Error deleting image from database:', dbError)
+      return NextResponse.json(
+        { error: 'Failed to delete image record' },
+        { status: 500 }
       )
     }
-
-    // Save updated project data
-    const projectIndex = projects.findIndex(p => p.id === projectId)
-    projects[projectIndex] = project
-    await saveProjects(projects)
 
     return NextResponse.json({ success: true })
   } catch (error) {

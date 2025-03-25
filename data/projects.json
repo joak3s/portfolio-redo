@@ -355,5 +355,38 @@
       "bgColor": "#0072bd",
       "mockupBgColor": ""
     }
+  },
+  {
+    "name": "Test Project 1742877140181",
+    "slug": "test-project-1742877140181",
+    "short_summary": "This is a test project created by the troubleshooter",
+    "main_image": "/placeholder.svg?height=600&width=800",
+    "challenge": "Test challenge",
+    "approach": "Test approach",
+    "solution": "Test solution",
+    "results": "Test results",
+    "featured_order": 0,
+    "tools": [
+      "Test"
+    ],
+    "website_link": "",
+    "id": "0226021a-ec5f-4bdc-be80-3e55c8412b6d",
+    "publishedAt": "2025-03-25T04:32:20.186Z",
+    "status": "draft",
+    "images": []
+  },
+  {
+    "name": "Update Test 1742877140194 (Updated)",
+    "slug": "update-test-1742877140194",
+    "short_summary": "This project has been updated by the troubleshooter",
+    "main_image": "/placeholder.svg?height=600&width=800",
+    "featured_order": 0,
+    "tools": [
+      "Test"
+    ],
+    "id": "1d1b515a-4a0c-4adf-8aab-7c6c6894badf",
+    "publishedAt": "2025-03-25T04:32:20.199Z",
+    "status": "draft",
+    "images": []
   }
 ]

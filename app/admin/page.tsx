@@ -10,108 +10,136 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
-import type { Project } from "@/lib/types"
+import type { Project, ProjectCreate, ProjectUpdate, ProjectImage, Tool, Tag } from "@/lib/types"
 import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, AlertCircle } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
-import { FormItem, FormLabel, FormControl } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { ProjectImageUpload } from '@/components/project-image-upload'
 import { cn } from "@/lib/utils"
+import { supabaseClient } from "@/lib/supabase-client"
+import { v4 as uuidv4 } from "uuid"
 
 export default function AdminPage() {
   const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProject, setSelectedProject] = useState<Partial<Project> | null>(null)
+  const [selectedProject, setSelectedProject] = useState<ProjectCreate | ProjectUpdate | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("general")
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [tools, setTools] = useState<Tool[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
   const isMobile = useMediaQuery("(max-width: 768px)")
 
   useEffect(() => {
     fetchProjects()
+    fetchTools()
+    fetchTags()
   }, [])
 
   const fetchProjects = async () => {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch("/api/projects")
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch projects: ${response.status} ${response.statusText}`)
-      }
-
+      const response = await fetch("/api/admin/projects")
+      if (!response.ok) throw new Error(`Failed to fetch projects: ${response.status}`)
       const data = await response.json()
       setProjects(data)
     } catch (error) {
       console.error("Error fetching projects:", error)
       setError(error instanceof Error ? error.message : "Failed to fetch projects")
-      toast({
-        title: "Error",
-        description: "Failed to fetch projects. Please try again.",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Failed to fetch projects", variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const validateProject = (project: Partial<Project>) => {
+  const fetchTools = async () => {
+    try {
+      const response = await fetch("/api/admin/tools")
+      if (!response.ok) throw new Error("Failed to fetch tools")
+      const data = await response.json()
+      setTools(data)
+    } catch (error) {
+      console.error("Error fetching tools:", error)
+      toast({ title: "Error", description: "Failed to fetch tools", variant: "destructive" })
+    }
+  }
+
+  const fetchTags = async () => {
+    try {
+      const response = await fetch("/api/admin/tags")
+      if (!response.ok) throw new Error("Failed to fetch tags")
+      const data = await response.json()
+      setTags(data)
+    } catch (error) {
+      console.error("Error fetching tags:", error)
+      toast({ title: "Error", description: "Failed to fetch tags", variant: "destructive" })
+    }
+  }
+
+  const validateProject = (project: ProjectCreate | ProjectUpdate) => {
     const errors: Record<string, string> = {}
-
-    if (!project?.title?.trim()) {
-      errors.title = "Project title is required"
-    }
-
-    if (!project?.description?.trim()) {
-      errors.description = "Project description is required"
-    }
-
-    if (!project?.slug?.trim()) {
-      errors.slug = "Slug is required"
-    } else if (!/^[a-z0-9-]+$/.test(project.slug)) {
+    if (!project?.title?.trim()) errors.title = "Title is required"
+    if (!project?.description?.trim()) errors.description = "Description is required"
+    if (!project?.slug?.trim()) errors.slug = "Slug is required"
+    else if (!/^[a-z0-9-]+$/.test(project.slug)) {
       errors.slug = "Slug must contain only lowercase letters, numbers, and hyphens"
     }
-
     return errors
   }
 
   const handleEditProject = (project: Project) => {
-    setSelectedProject(project)
+    const projectUpdate: ProjectUpdate = {
+      id: project.id,
+      title: project.title,
+      description: project.description,
+      slug: project.slug,
+      challenge: project.challenge || '',
+      approach: project.approach || '',
+      solution: project.solution || '',
+      results: project.results || '',
+      featured: project.featured || 0,
+      status: project.status,
+      website_url: project.website_url || '',
+      priority: project.priority || 0,
+      images: project.project_images?.map(img => ({
+        url: img.url,
+        alt_text: img.alt_text || '',
+        order_index: img.order_index
+      })) || [],
+      tool_ids: project.tools?.map(tool => tool.id) || [],
+      tag_ids: project.tags?.map(tag => tag.id) || []
+    }
+    setSelectedProject(projectUpdate)
     setFormErrors({})
     setIsDialogOpen(true)
+    setActiveTab("general")
   }
 
   const handleCreateProject = () => {
-    setSelectedProject({
+    const newProject: ProjectCreate = {
       title: "",
       slug: "",
       description: "",
-      content: {
-        challenge: "",
-        approach: "",
-        solution: "",
-        results: ""
-      },
+      challenge: "",
+      approach: "",
+      solution: "",
+      results: "",
       featured: 0,
       status: "draft",
+      website_url: "",
+      priority: 0,
       images: [],
-      tags: [],
-      tools: [],
-      websiteUrl: "",
-      metadata: {
-        priority: 0
-      }
-    })
+      tool_ids: [],
+      tag_ids: []
+    }
+    setSelectedProject(newProject)
     setFormErrors({})
     setIsDialogOpen(true)
     setActiveTab("general")
@@ -122,55 +150,38 @@ export default function AdminPage() {
 
     const errors = validateProject(selectedProject)
     if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
       toast({
         title: "Validation Error",
         description: "Please fix the errors in the form",
         variant: "destructive",
       })
-      setFormErrors(errors)
       return
     }
 
     try {
-      if ("id" in selectedProject && selectedProject.id && selectedProject.slug) {
-        // Update existing project
-        const response = await fetch(`/api/projects/${selectedProject.slug}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(selectedProject),
-        })
+      const isUpdate = 'id' in selectedProject
+      const method = isUpdate ? "PUT" : "POST"
+      const endpoint = "/api/admin/projects" + (isUpdate ? `?id=${selectedProject.id}` : '')
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to update project")
-        }
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(selectedProject),
+      })
 
-        toast({
-          title: "Success",
-          description: `${selectedProject.title} has been updated successfully.`,
-        })
-      } else {
-        // Create new project
-        const response = await fetch("/api/projects", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(selectedProject),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to create project")
-        }
-
-        toast({
-          title: "Success",
-          description: `${selectedProject.title} has been created successfully.`,
-        })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to ${isUpdate ? 'update' : 'create'} project`)
       }
 
-      fetchProjects()
+      toast({
+        title: "Success",
+        description: `${selectedProject.title} has been ${isUpdate ? 'updated' : 'created'} successfully.`,
+      })
+
       setIsDialogOpen(false)
-      router.refresh()
+      fetchProjects()
     } catch (error) {
       console.error("Error saving project:", error)
       toast({
@@ -182,10 +193,10 @@ export default function AdminPage() {
   }
 
   const handleDeleteProject = async (project: Project) => {
-    if (!confirm(`Are you sure you want to delete "${project.title}"? This action cannot be undone.`)) return
+    if (!confirm(`Are you sure you want to delete "${project.title}"?`)) return
 
     try {
-      const response = await fetch(`/api/projects/${project.slug}`, {
+      const response = await fetch(`/api/admin/projects?id=${project.id}`, {
         method: "DELETE",
       })
 
@@ -200,7 +211,6 @@ export default function AdminPage() {
       })
 
       fetchProjects()
-      router.refresh()
     } catch (error) {
       console.error("Error deleting project:", error)
       toast({
@@ -213,44 +223,119 @@ export default function AdminPage() {
 
   const handleInputChange = (field: string, value: any) => {
     if (!selectedProject) return
-
-    // Clear the error for this field when the user makes changes
     if (formErrors[field]) {
       setFormErrors({ ...formErrors, [field]: "" })
     }
-
     setSelectedProject({ ...selectedProject, [field]: value })
   }
 
   const handleSlugChange = (value: string) => {
     if (!selectedProject) return
-
-    // Auto-generate a slug-friendly value
     const slugified = value
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, "-")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "")
+    handleInputChange("slug", slugified)
+  }
 
-    setSelectedProject({ ...selectedProject, slug: slugified })
+  const handleImageUpload = async (file: File) => {
+    try {
+      if (!file) {
+        throw new Error('No file selected')
+      }
 
-    // Clear the error for this field
-    if (formErrors.slug) {
-      setFormErrors({ ...formErrors, slug: "" })
+      // Validate file type
+      const fileType = file.type.split('/')[1]
+      const validTypes = ['jpeg', 'jpg', 'png', 'gif', 'webp']
+      if (!validTypes.includes(fileType.toLowerCase())) {
+        throw new Error('Invalid file type. Please upload a valid image file.')
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      if (file.size > maxSize) {
+        throw new Error('File size too large. Maximum size is 5MB.')
+      }
+
+      // Create unique file path
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || fileType
+      const fileName = `${uuidv4()}-${Date.now()}.${fileExt}`
+
+      // Check if bucket exists and is accessible
+      const { data: buckets, error: bucketsError } = await supabaseClient.storage
+        .getBuckets()
+      
+      if (bucketsError) {
+        console.error('Error checking buckets:', bucketsError)
+        throw new Error(`Storage not accessible: ${bucketsError.message}`)
+      }
+
+      const projectImagesBucket = buckets?.find(b => b.name === 'project-images')
+      if (!projectImagesBucket) {
+        console.error('project-images bucket not found')
+        throw new Error('Storage bucket not configured')
+      }
+
+      // Upload file to Supabase Storage
+      console.log('Attempting to upload file:', fileName)
+      const { data: uploadData, error: uploadError } = await supabaseClient.storage
+        .from('project-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) {
+        console.error('Supabase upload error details:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          name: uploadError.name,
+          error: uploadError
+        })
+        throw new Error(`Failed to upload image: ${uploadError.message}`)
+      }
+
+      if (!uploadData?.path) {
+        throw new Error('Upload successful but no path returned')
+      }
+
+      console.log('File uploaded successfully:', uploadData.path)
+
+      // Get the public URL
+      const { data: { publicUrl }, error: urlError } = supabaseClient.storage
+        .from('project-images')
+        .getPublicUrl(uploadData.path)
+
+      if (urlError) {
+        console.error('Error getting public URL:', urlError)
+        throw new Error('Failed to get public URL')
+      }
+
+      if (!publicUrl) {
+        throw new Error('Failed to get public URL')
+      }
+
+      console.log('Public URL generated:', publicUrl)
+      return publicUrl
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload image",
+        variant: "destructive"
+      })
+      return null
     }
   }
 
   const sortedProjects = [...projects].sort((a, b) => {
-    // Sort by featured value (lower numbers first, 0 at the end)
-    if ((a.featured || 999) !== (b.featured || 999)) {
-      // If either value is 0, put it at the end
+    if ((a.featured || 0) !== (b.featured || 0)) {
       if (a.featured === 0) return 1
       if (b.featured === 0) return -1
-      // Otherwise sort by featured value ascending
-      return (a.featured || 999) - (b.featured || 999)
+      return (a.featured || 0) - (b.featured || 0)
     }
-    // Then by publish date
-    return new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
   return (
@@ -309,30 +394,34 @@ export default function AdminPage() {
                   {sortedProjects.map((project) => (
                     <TableRow key={project.id} className="hover:bg-muted/50">
                       <TableCell>
-                        {project.images?.length > 0 && project.images[0].url ? (
+                        {project.project_images && project.project_images.length > 0 ? (
                           <div className="relative w-28 h-16 rounded-md overflow-hidden border bg-muted">
                             <img
-                              src={project.images[0].url}
-                              alt={project.images[0].alt || project.title}
+                              src={project.project_images[0].url}
+                              alt={project.project_images[0].alt_text || project.title}
                               className="object-cover w-full h-full"
                             />
                           </div>
                         ) : (
-                          <div className="w-28 h-16 rounded-md bg-muted flex items-center justify-center border">
-                            <span className="text-muted-foreground text-xs">No img</span>
+                          <div className="w-28 h-16 rounded-md border bg-muted flex items-center justify-center">
+                            <span className="text-muted-foreground text-sm">No image</span>
                           </div>
                         )}
                       </TableCell>
                       <TableCell className="font-medium">{project.title}</TableCell>
                       <TableCell className="max-w-[200px] truncate text-muted-foreground">{project.description}</TableCell>
                       <TableCell>
-                        {project.featured && project.featured > 0 ? (
-                          <Badge variant="outline" className="font-mono bg-background">
-                            {project.featured.toString().padStart(2, '0')}
+                        <div className="flex items-center space-x-2">
+                        
+                          {project.featured !== undefined && project.featured > 0 && (
+                            <Badge variant="outline" className="bg-background">
+                              #{project.featured}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs">
+                            {new Date(project.created_at).toLocaleDateString()}
                           </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge 
@@ -374,95 +463,93 @@ export default function AdminPage() {
             </div>
 
             {/* Mobile Card View */}
-            <div className="md:hidden space-y-4">
-              {sortedProjects.map((project) => (
-                <Card key={project.id} className="overflow-hidden bg-card">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="flex items-start gap-3">
-                        {project.images?.length > 0 && project.images[0].url ? (
-                          <div className="relative w-12 h-12 rounded-md overflow-hidden border bg-muted shrink-0">
-                            <img
-                              src={project.images[0].url}
-                              alt={project.images[0].alt || project.title}
-                              className="object-cover w-full h-full"
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border shrink-0">
-                            <span className="text-muted-foreground text-xs">No img</span>
-                          </div>
-                        )}
-                        <div>
-                          <CardTitle className="leading-tight">{project.title}</CardTitle>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge 
-                              variant="outline"
-                              className={cn(
-                                "capitalize border",
-                                project.status === 'published' 
-                                  ? "border-green-500/50 text-green-500 dark:border-green-400/50 dark:text-green-400 hover:bg-green-500/5" 
-                                  : "border-muted-foreground/20"
-                              )}
-                            >
-                              {project.status}
-                            </Badge>
-                            {project.featured && project.featured > 0 && (
-                              <Badge variant="outline" className="font-mono bg-background">
-                                Featured ({project.featured.toString().padStart(2, '0')})
+            {isMobile && (
+              <div className="md:hidden space-y-4">
+                {sortedProjects.map((project) => (
+                  <Card key={project.id} className="overflow-hidden bg-card">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex items-start gap-3">
+                          {project.project_images && project.project_images.length > 0 ? (
+                            <div className="relative w-12 h-12 rounded-md overflow-hidden border bg-muted shrink-0">
+                              <img
+                                src={project.project_images[0].url}
+                                alt={project.project_images[0].alt_text || project.title}
+                                className="object-cover w-full h-full"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-md border bg-muted flex items-center justify-center shrink-0">
+                              <span className="text-muted-foreground text-sm">No image</span>
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-medium leading-none">{project.title}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              <Badge
+                                variant={project.status === "published" ? "default" : "secondary"}
+                                className="capitalize"
+                              >
+                                {project.status}
                               </Badge>
-                            )}
+                              {project.featured !== undefined && project.featured > 0 && (
+                                <Badge variant="outline" className="font-mono bg-background">
+                                  Featured #{project.featured}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="hover:bg-muted">
-                            <MoreHorizontal className="h-5 w-5" />
-                            <span className="sr-only">Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-popover">
-                          <DropdownMenuItem onClick={() => handleEditProject(project)} className="hover:bg-muted">
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteProject(project)}
-                            className="text-destructive focus:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                          {project.websiteUrl && (
-                            <DropdownMenuItem asChild className="hover:bg-muted">
-                              <a href={project.websiteUrl} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" /> Visit Site
-                              </a>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="hover:bg-muted">
+                              <MoreHorizontal className="h-5 w-5" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-popover">
+                            <DropdownMenuItem onClick={() => handleEditProject(project)} className="hover:bg-muted">
+                              <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pb-3">
-                    <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-                  </CardContent>
-                  <CardFooter>
-                    <div className="flex flex-wrap gap-1">
-                      {project.tools?.slice(0, 3).map((tool) => (
-                        <Badge key={tool} variant="outline" className="text-xs bg-background">
-                          {tool}
-                        </Badge>
-                      ))}
-                      {project.tools && project.tools.length > 3 && (
-                        <Badge variant="outline" className="text-xs bg-background">
-                          +{project.tools.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteProject(project)}
+                              className="text-destructive focus:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                            {project.website_url && (
+                              <DropdownMenuItem asChild className="hover:bg-muted">
+                                <a href={project.website_url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="mr-2 h-4 w-4" /> Visit Site
+                                </a>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-3">
+                      <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
+                    </CardContent>
+                    <CardFooter>
+                      <div className="flex flex-wrap gap-1">
+                        {project.tools?.slice(0, 3).map((tool) => (
+                          <Badge key={tool.id} variant="outline" className="text-xs bg-background">
+                            {tool.name}
+                          </Badge>
+                        ))}
+                        {project.tools && project.tools.length > 3 && (
+                          <Badge variant="outline" className="text-xs bg-background">
+                            +{project.tools.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
           </>
         )}
 
@@ -540,15 +627,22 @@ export default function AdminPage() {
                       <Label htmlFor="main_image">Main Image URL</Label>
                       <Input
                         id="main_image"
-                        value={selectedProject.images?.[0]?.url || ""}
+                        value={selectedProject.project_images?.[0]?.url || ""}
                         onChange={(e) => {
-                          const newImages = [...(selectedProject.images || [])]
+                          const newImages = [...(selectedProject.project_images || [])]
                           if (newImages.length === 0) {
-                            newImages.push({ url: e.target.value, alt: "" })
+                            newImages.push({
+                              id: "",
+                              project_id: "",
+                              url: e.target.value,
+                              alt_text: "",
+                              order_index: 0,
+                              created_at: new Date().toISOString()
+                            })
                           } else {
                             newImages[0] = { ...newImages[0], url: e.target.value }
                           }
-                          handleInputChange("images", newImages)
+                          handleInputChange("project_images", newImages)
                         }}
                         placeholder="/images/project.jpg"
                       />
@@ -559,26 +653,33 @@ export default function AdminPage() {
                       <Label htmlFor="thumbnail_alt">Thumbnail Alt Text</Label>
                       <Input
                         id="thumbnail_alt"
-                        value={selectedProject.images?.[0]?.alt || ""}
+                        value={selectedProject.project_images?.[0]?.alt_text || ""}
                         onChange={(e) => {
-                          const newImages = [...(selectedProject.images || [])]
+                          const newImages = [...(selectedProject.project_images || [])]
                           if (newImages.length === 0) {
-                            newImages.push({ url: "", alt: e.target.value })
+                            newImages.push({
+                              id: "",
+                              project_id: "",
+                              url: "",
+                              alt_text: e.target.value,
+                              order_index: 0,
+                              created_at: new Date().toISOString()
+                            })
                           } else {
-                            newImages[0] = { ...newImages[0], alt: e.target.value }
+                            newImages[0] = { ...newImages[0], alt_text: e.target.value }
                           }
-                          handleInputChange("images", newImages)
+                          handleInputChange("project_images", newImages)
                         }}
                         placeholder="Enter thumbnail alt text"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="websiteUrl">Website URL</Label>
+                      <Label htmlFor="website_url">Website URL</Label>
                       <Input
-                        id="websiteUrl"
-                        value={selectedProject.websiteUrl || ""}
-                        onChange={(e) => handleInputChange("websiteUrl", e.target.value)}
+                        id="website_url"
+                        value={selectedProject.website_url || ""}
+                        onChange={(e) => handleInputChange("website_url", e.target.value)}
                         placeholder="Enter project website URL"
                       />
                     </div>
@@ -589,11 +690,8 @@ export default function AdminPage() {
                       <Label htmlFor="challenge">Challenge</Label>
                       <Textarea
                         id="challenge"
-                        value={selectedProject.content?.challenge || ""}
-                        onChange={(e) => handleInputChange("content", {
-                          ...selectedProject.content,
-                          challenge: e.target.value
-                        })}
+                        value={selectedProject.challenge || ""}
+                        onChange={(e) => handleInputChange("challenge", e.target.value)}
                         placeholder="Describe the project challenge"
                         rows={5}
                       />
@@ -603,11 +701,8 @@ export default function AdminPage() {
                       <Label htmlFor="approach">Approach</Label>
                       <Textarea
                         id="approach"
-                        value={selectedProject.content?.approach || ""}
-                        onChange={(e) => handleInputChange("content", {
-                          ...selectedProject.content,
-                          approach: e.target.value
-                        })}
+                        value={selectedProject.approach || ""}
+                        onChange={(e) => handleInputChange("approach", e.target.value)}
                         placeholder="Describe your approach"
                         rows={5}
                       />
@@ -617,11 +712,8 @@ export default function AdminPage() {
                       <Label htmlFor="solution">Solution</Label>
                       <Textarea
                         id="solution"
-                        value={selectedProject.content?.solution || ""}
-                        onChange={(e) => handleInputChange("content", {
-                          ...selectedProject.content,
-                          solution: e.target.value
-                        })}
+                        value={selectedProject.solution || ""}
+                        onChange={(e) => handleInputChange("solution", e.target.value)}
                         placeholder="Describe the solution"
                         rows={5}
                       />
@@ -631,11 +723,8 @@ export default function AdminPage() {
                       <Label htmlFor="results">Results</Label>
                       <Textarea
                         id="results"
-                        value={selectedProject.content?.results || ""}
-                        onChange={(e) => handleInputChange("content", {
-                          ...selectedProject.content,
-                          results: e.target.value
-                        })}
+                        value={selectedProject.results || ""}
+                        onChange={(e) => handleInputChange("results", e.target.value)}
                         placeholder="Describe the results"
                         rows={5}
                       />
@@ -644,38 +733,72 @@ export default function AdminPage() {
 
                   <TabsContent value="details" className="space-y-6 mt-0">
                     <div className="space-y-4">
-                      <div>
-                        <h4 className="font-medium mb-2">Project Images</h4>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Add up to 5 images for your project. The first image will be used as the thumbnail.
-                        </p>
-
-                        {selectedProject.id ? (
-                          <ProjectImageUpload
-                            projectId={selectedProject.id}
-                            images={selectedProject.images || []}
-                            onImagesUpdate={(newImages) =>
-                              handleInputChange("images", newImages)
-                            }
-                          />
-                        ) : (
-                          <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                            <p className="text-muted-foreground">
-                              Save the project first to enable image uploads
-                            </p>
+                      <div className="space-y-2">
+                        <Label>Project Images</Label>
+                        <div className="border rounded-lg p-4">
+                          {(selectedProject?.images || []).length > 0 ? (
+                            <div className="grid grid-cols-2 gap-4">
+                              {(selectedProject?.images || []).map((image, index) => (
+                                <div key={index} className="relative aspect-video">
+                                  <img
+                                    src={image.url}
+                                    alt={image.alt_text || "Project image"}
+                                    className="object-cover rounded-md w-full h-full"
+                                  />
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="absolute top-2 right-2"
+                                    onClick={() => {
+                                      if (!selectedProject?.images) return
+                                      const newImages = [...selectedProject.images]
+                                      newImages.splice(index, 1)
+                                      handleInputChange("images", newImages)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground">No images uploaded yet</p>
+                            </div>
+                          )}
+                          <div className="mt-4">
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (file && selectedProject) {
+                                  const publicUrl = await handleImageUpload(file)
+                                  if (publicUrl) {
+                                    const newImage = {
+                                      url: publicUrl,
+                                      alt_text: file.name,
+                                      order_index: (selectedProject.images || []).length
+                                    }
+                                    const newImages = [...(selectedProject.images || []), newImage]
+                                    handleInputChange("images", newImages)
+                                  }
+                                }
+                              }}
+                            />
                           </div>
-                        )}
+                        </div>
                       </div>
 
                       <div className="space-y-4 pt-6 border-t">
                         <div className="space-y-2">
-                          <Label htmlFor="tools">Tools</Label>
+                          <Label htmlFor="tool_ids">Tools</Label>
                           <Input
-                            id="tools"
-                            value={selectedProject.tools ? selectedProject.tools.join(", ") : ""}
+                            id="tool_ids"
+                            value={selectedProject.tool_ids ? selectedProject.tool_ids.join(", ") : ""}
                             onChange={(e) =>
                               handleInputChange(
-                                "tools",
+                                "tool_ids",
                                 e.target.value
                                   .split(",")
                                   .map((tool) => tool.trim())
@@ -701,15 +824,17 @@ export default function AdminPage() {
                           <p className="text-xs text-muted-foreground">Lower numbers appear first in featured sections</p>
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="id">Project ID</Label>
-                          <Input 
-                            id="id" 
-                            value={selectedProject.id || "New Project"} 
-                            disabled 
-                            className="bg-muted text-muted-foreground"
-                          />
-                        </div>
+                        {'id' in selectedProject && (
+                          <div className="space-y-2">
+                            <Label htmlFor="id">Project ID</Label>
+                            <Input 
+                              id="id" 
+                              value={selectedProject.id} 
+                              disabled 
+                              className="bg-muted text-muted-foreground"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
