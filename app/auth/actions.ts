@@ -1,65 +1,70 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
 import { redirect } from 'next/navigation'
+import { createServerComponentClient } from '@/lib/supabase-server'
 
 export async function signIn(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
-  const redirectTo = formData.get('redirect') as string
 
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set(name, value, options)
-        },
-        remove(name: string, options: any) {
-          cookieStore.delete(name)
-        },
-      },
-    }
-  )
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
-
-  if (error) {
-    return redirect('/auth/login?message=Invalid credentials')
+  if (!email || !password) {
+    return redirect('/auth/login?error=Please provide both email and password')
   }
 
-  return redirect(redirectTo || '/admin')
+  const supabase = await createServerComponentClient()
+
+  try {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      // Handle specific error cases
+      if (error.message.includes('Invalid login credentials')) {
+        return redirect('/auth/login?error=Invalid email or password')
+      }
+      if (error.message.includes('Email not confirmed')) {
+        return redirect('/auth/login?error=Please confirm your email first')
+      }
+      return redirect('/auth/login?error=An error occurred during sign in')
+    }
+
+    // Set a secure cookie with the session
+    const cookieStore = await cookies()
+    cookieStore.set('auth_session', 'true', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+    })
+
+    return redirect('/admin')
+  } catch (error) {
+    console.error('Sign in error:', error)
+    return redirect('/auth/login?error=An unexpected error occurred')
+  }
 }
 
 export async function signOut() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set(name, value, options)
-        },
-        remove(name: string, options: any) {
-          cookieStore.delete(name)
-        },
-      },
-    }
-  )
+  const supabase = await createServerComponentClient()
 
-  await supabase.auth.signOut()
-  return redirect('/')
+  try {
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.error('Sign out error:', error)
+      return redirect('/auth/login?error=Error signing out')
+    }
+
+    // Clear the auth cookie
+    const cookieStore = await cookies()
+    cookieStore.delete('auth_session')
+
+    return redirect('/auth/login')
+  } catch (error) {
+    console.error('Sign out error:', error)
+    return redirect('/auth/login?error=An unexpected error occurred')
+  }
 } 

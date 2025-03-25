@@ -40,6 +40,7 @@
     "@radix-ui/react-tooltip": "^1.1.6",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.39.7",
     "@tailwindcss/typography": "0.5.10",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.20",
@@ -73,7 +74,6 @@
     "zod": "3.22.4"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.49.3",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",

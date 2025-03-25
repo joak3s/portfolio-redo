@@ -1,6 +1,6 @@
 "use server"
 
-import { supabaseAdmin } from "@/lib/supabase-admin"
+import { supabaseAdmin } from "@/lib/supabase"
 import type { Project } from "./types"
 
 // Read all projects

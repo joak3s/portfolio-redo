@@ -1,20 +1,36 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+'use server'
 
-export function createClient() {
-  return createServerClient(
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { type Database } from './database.types'
+
+// Server-side Supabase client (for Server Components)
+export async function createServerComponentClient() {
+  const cookieStore = cookies()
+  
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return cookies().get(name)?.value
+          return cookieStore.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
-          cookies().set(name, value, options)
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value, ...options })
+          } catch (error) {
+            // Handle edge case where cookies are not available
+            console.error('Error setting cookie:', error)
+          }
         },
-        remove(name: string, options: any) {
-          cookies().delete(name)
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.delete(name)
+          } catch (error) {
+            // Handle edge case where cookies are not available
+            console.error('Error removing cookie:', error)
+          }
         },
       },
     }

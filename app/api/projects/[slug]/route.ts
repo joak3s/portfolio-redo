@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase-admin"
+import { supabaseAdmin } from "@/lib/supabase"
 import type { Project, Tool, Tag, ProjectImage } from "@/lib/types"
 
 interface ProjectWithRelations extends Project {

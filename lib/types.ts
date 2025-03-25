@@ -1,10 +1,11 @@
 export interface ProjectImage {
   id: string
-  project_id: string
+  project_id: string | null
   url: string
-  alt_text?: string
+  alt_text: string | null
   order_index: number
   created_at: string
+  updated_at: string
 }
 
 export interface Tool {
@@ -24,14 +25,14 @@ export interface Project {
   title: string
   description: string
   slug: string
-  challenge?: string
-  approach?: string
-  solution?: string
-  results?: string
-  featured?: number
+  challenge: string | null
+  approach: string | null
+  solution: string | null
+  results: string | null
+  featured: number | null
   status: 'draft' | 'published'
-  website_url?: string
-  priority?: number
+  website_url: string | null
+  priority: number | null
   created_at: string
   updated_at: string
   // Relations

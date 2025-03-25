@@ -3,7 +3,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { Project } from '@/lib/types'
 import { ProjectUpdate } from '@/lib/types'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/supabase'
 
 const dataFilePath = path.join(process.cwd(), 'public', 'data', 'projects.json')
 const projectsDirectory = path.join(process.cwd(), 'public', 'projects')

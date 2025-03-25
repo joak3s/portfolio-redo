@@ -1,35 +1,52 @@
-import { promises as fs } from 'fs'
-import path from 'path'
+import { supabaseClient } from './supabase-client'
+
+const BUCKET_NAME = 'project-images'
 
 export async function uploadImage(file: File, projectId: string) {
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${crypto.randomUUID()}.${fileExt}`
-  const projectDir = path.join(process.cwd(), 'public', 'projects', projectId)
-  const filePath = path.join(projectDir, fileName)
+  try {
+    // Create a unique file name
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${projectId}/${crypto.randomUUID()}.${fileExt}`
 
-  // Ensure directory exists
-  await fs.mkdir(projectDir, { recursive: true })
+    // Upload file to Supabase Storage
+    const { data, error } = await supabaseClient.storage
+      .from(BUCKET_NAME)
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      })
 
-  // Convert File to Buffer
-  const bytes = await file.arrayBuffer()
-  const buffer = Buffer.from(bytes)
+    if (error) {
+      throw error
+    }
 
-  // Save file
-  await fs.writeFile(filePath, buffer)
+    // Get public URL
+    const { data: { publicUrl } } = supabaseClient.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(fileName)
 
-  // Return the public URL
-  return {
-    url: `/projects/${projectId}/${fileName}`,
-    path: filePath,
-    alt: file.name.split('.')[0], // Use filename as alt text
+    return {
+      url: publicUrl,
+      path: fileName,
+      alt: file.name.split('.')[0], // Use filename as alt text
+    }
+  } catch (error) {
+    console.error('Error uploading image:', error)
+    throw error
   }
 }
 
 export async function deleteImage(path: string) {
   try {
-    await fs.unlink(path)
+    const { error } = await supabaseClient.storage
+      .from(BUCKET_NAME)
+      .remove([path])
+
+    if (error) {
+      throw error
+    }
   } catch (error) {
     console.error('Error deleting image:', error)
-    // Don't throw error if file doesn't exist
+    throw error
   }
 } 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ProjectCreate, ProjectUpdate } from '@/lib/types'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { supabaseAdmin } from '@/lib/supabase'
 
 type ProjectImageInput = {
   url: string

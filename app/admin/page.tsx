@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import type { Project, ProjectCreate, ProjectUpdate, ProjectImage, Tool, Tag } from "@/lib/types"
-import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, AlertCircle, Check, ChevronsUpDown, X } from "lucide-react"
+import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, AlertCircle, Check, ChevronsUpDown, X, Loader2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -20,7 +20,7 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { supabaseClient } from "@/lib/supabase-client"
+import { supabaseClient } from "@/lib/supabase"
 import { v4 as uuidv4 } from "uuid"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -36,22 +36,51 @@ export default function AdminPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [tools, setTools] = useState<Tool[]>([])
   const [tags, setTags] = useState<Tag[]>([])
+  const [isSaving, setIsSaving] = useState(false)
   const isMobile = useMediaQuery("(max-width: 768px)")
 
   useEffect(() => {
+    checkAuth()
     fetchProjects()
     fetchTools()
     fetchTags()
   }, [])
 
+  const checkAuth = async () => {
+    try {
+      const { data: { session }, error: authError } = await supabaseClient.auth.getSession()
+      if (authError || !session) {
+        router.push('/auth/login')
+      }
+    } catch (error) {
+      console.error('Auth check error:', error)
+      router.push('/auth/login')
+    }
+  }
+
   const fetchProjects = async () => {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch("/api/admin/projects")
-      if (!response.ok) throw new Error(`Failed to fetch projects: ${response.status}`)
-      const data = await response.json()
-      setProjects(data)
+      const { data, error: fetchError } = await supabaseClient
+        .from('projects')
+        .select(`
+          *,
+          project_images (*),
+          tools (*),
+          tags (*)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+      
+      // Ensure status is properly typed
+      const typedProjects = (data || []).map(project => ({
+        ...project,
+        status: (project.status || 'draft') as 'draft' | 'published'
+      })) as Project[]
+      
+      setProjects(typedProjects)
     } catch (error) {
       console.error("Error fetching projects:", error)
       setError(error instanceof Error ? error.message : "Failed to fetch projects")
@@ -63,10 +92,13 @@ export default function AdminPage() {
 
   const fetchTools = async () => {
     try {
-      const response = await fetch("/api/admin/tools")
-      if (!response.ok) throw new Error("Failed to fetch tools")
-      const data = await response.json()
-      setTools(data)
+      const { data, error: fetchError } = await supabaseClient
+        .from('tools')
+        .select('*')
+        .order('name')
+
+      if (fetchError) throw fetchError
+      setTools(data || [])
     } catch (error) {
       console.error("Error fetching tools:", error)
       toast({ title: "Error", description: "Failed to fetch tools", variant: "destructive" })
@@ -75,10 +107,13 @@ export default function AdminPage() {
 
   const fetchTags = async () => {
     try {
-      const response = await fetch("/api/admin/tags")
-      if (!response.ok) throw new Error("Failed to fetch tags")
-      const data = await response.json()
-      setTags(data)
+      const { data, error: fetchError } = await supabaseClient
+        .from('tags')
+        .select('*')
+        .order('name')
+
+      if (fetchError) throw fetchError
+      setTags(data || [])
     } catch (error) {
       console.error("Error fetching tags:", error)
       toast({ title: "Error", description: "Failed to fetch tags", variant: "destructive" })
@@ -162,19 +197,22 @@ export default function AdminPage() {
     }
 
     try {
+      setIsSaving(true)
       const isUpdate = 'id' in selectedProject
-      const method = isUpdate ? "PUT" : "POST"
-      const endpoint = "/api/admin/projects" + (isUpdate ? `?id=${selectedProject.id}` : '')
+      
+      if (isUpdate) {
+        const { error: updateError } = await supabaseClient
+          .from('projects')
+          .update(selectedProject)
+          .eq('id', selectedProject.id)
 
-      const response = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(selectedProject),
-      })
+        if (updateError) throw updateError
+      } else {
+        const { error: insertError } = await supabaseClient
+          .from('projects')
+          .insert(selectedProject)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to ${isUpdate ? 'update' : 'create'} project`)
+        if (insertError) throw insertError
       }
 
       toast({
@@ -191,6 +229,8 @@ export default function AdminPage() {
         description: error instanceof Error ? error.message : "Failed to save project",
         variant: "destructive",
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -243,6 +283,12 @@ export default function AdminPage() {
 
   const handleImageUpload = async (file: File) => {
     try {
+      // First verify authentication
+      const { data: { session }, error: authError } = await supabaseClient.auth.getSession()
+      if (authError || !session) {
+        throw new Error('Authentication required. Please sign in.')
+      }
+
       if (!file) {
         throw new Error('No file selected')
       }
@@ -260,74 +306,125 @@ export default function AdminPage() {
         throw new Error('File size too large. Maximum size is 5MB.')
       }
 
-      // Create unique file path
+      // Create unique file path with proper organization
+      const timestamp = new Date().getTime()
+      const uniqueId = uuidv4()
       const fileExt = file.name.split('.').pop()?.toLowerCase() || fileType
-      const fileName = `${uuidv4()}-${Date.now()}.${fileExt}`
+      const fileName = `${timestamp}-${uniqueId}.${fileExt}`
+      const filePath = `projects/${fileName}` // Store in projects/ subdirectory
 
-      // Check if bucket exists and is accessible
-      const { data: buckets, error: bucketsError } = await supabaseClient.storage
-        .getBuckets()
-      
-      if (bucketsError) {
-        console.error('Error checking buckets:', bucketsError)
-        throw new Error(`Storage not accessible: ${bucketsError.message}`)
-      }
+      console.log('Attempting to upload file:', {
+        bucket: 'project-images',
+        path: filePath,
+        size: file.size,
+        type: file.type
+      })
 
-      const projectImagesBucket = buckets?.find(b => b.name === 'project-images')
-      if (!projectImagesBucket) {
-        console.error('project-images bucket not found')
-        throw new Error('Storage bucket not configured')
-      }
-
-      // Upload file to Supabase Storage
-      console.log('Attempting to upload file:', fileName)
+      // First, try to upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabaseClient.storage
         .from('project-images')
-        .upload(fileName, file, {
+        .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: `image/${fileExt}`
         })
 
       if (uploadError) {
-        console.error('Supabase upload error details:', {
+        console.error('Storage upload error details:', {
+          error: uploadError,
           message: uploadError.message,
-          statusCode: uploadError.statusCode,
-          name: uploadError.name,
-          error: uploadError
+          name: uploadError.name
         })
-        throw new Error(`Failed to upload image: ${uploadError.message}`)
+        throw new Error(`Failed to upload image: ${uploadError.message || 'Unknown error'}`)
       }
 
       if (!uploadData?.path) {
         throw new Error('Upload successful but no path returned')
       }
 
-      console.log('File uploaded successfully:', uploadData.path)
+      console.log('File uploaded successfully:', uploadData)
 
-      // Get the public URL
-      const { data: { publicUrl }, error: urlError } = supabaseClient.storage
+      // Get the public URL for the uploaded file
+      const { data: urlData } = supabaseClient.storage
         .from('project-images')
         .getPublicUrl(uploadData.path)
 
-      if (urlError) {
-        console.error('Error getting public URL:', urlError)
+      if (!urlData?.publicUrl) {
+        // If we can't get the public URL, clean up the uploaded file
+        await supabaseClient.storage
+          .from('project-images')
+          .remove([uploadData.path])
         throw new Error('Failed to get public URL')
       }
 
-      if (!publicUrl) {
-        throw new Error('Failed to get public URL')
+      // Return the public URL and path for database reference
+      return {
+        url: urlData.publicUrl,
+        path: uploadData.path
       }
 
-      console.log('Public URL generated:', publicUrl)
-      return publicUrl
     } catch (error) {
-      console.error('Error uploading image:', error)
+      console.error('Error in handleImageUpload:', error)
       toast({
-        title: "Error",
+        title: "Upload Error",
         description: error instanceof Error ? error.message : "Failed to upload image",
         variant: "destructive"
       })
       return null
+    }
+  }
+
+  // Helper function to handle image addition to project
+  const handleAddImageToProject = async (file: File) => {
+    try {
+      if (!selectedProject) return
+
+      const uploadResult = await handleImageUpload(file)
+      if (!uploadResult) return
+
+      // Create the new image object
+      const newImage = {
+        url: uploadResult.url,
+        storage_path: uploadResult.path,
+        alt_text: file.name.split('.')[0],
+        order_index: (selectedProject.images || []).length
+      }
+
+      // Update the project's images array
+      const newImages = [...(selectedProject.images || []), newImage]
+      handleInputChange("images", newImages)
+
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      })
+
+    } catch (error) {
+      console.error('Error adding image to project:', error)
+      toast({
+        title: "Error",
+        description: "Failed to add image to project",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Update the drop handler
+  const handleImageDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      await handleAddImageToProject(file)
+    }
+  }
+
+  // Update the file input handler
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      await handleAddImageToProject(file)
     }
   }
 
@@ -388,6 +485,29 @@ export default function AdminPage() {
     }
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-muted-foreground">Loading projects...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <div className="container py-8 md:py-12">
@@ -463,13 +583,11 @@ export default function AdminPage() {
                       <TableCell className="max-w-[200px] truncate text-muted-foreground">{project.description}</TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center space-x-2">
-                        
-                          {project.featured !== undefined && project.featured > 0 && (
+                          {typeof project.featured === 'number' && project.featured > 0 && (
                             <Badge variant="outline" className="bg-background">
                               #{project.featured}
                             </Badge>
                           )}
-                      
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -536,8 +654,7 @@ export default function AdminPage() {
                             <h3 className="font-medium leading-none">{project.title}</h3>
                             <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
                             <div className="flex flex-wrap gap-1 mt-2">
-                  
-                              {project.featured !== undefined && project.featured > 0 && (
+                              {typeof project.featured === 'number' && project.featured > 0 && (
                                 <Badge variant="outline" className="font-mono bg-background">
                                   #{project.featured}
                                 </Badge>
@@ -810,57 +927,110 @@ export default function AdminPage() {
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Label>Project Images</Label>
-                        <div className="border rounded-lg p-4">
+                        <div className="grid gap-6 border rounded-lg p-6 bg-card">
+                          {/* Current Images Display */}
                           {(selectedProject?.images || []).length > 0 ? (
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {(selectedProject?.images || []).map((image, index) => (
-                                <div key={index} className="relative aspect-video">
+                                <div 
+                                  key={index} 
+                                  className="group relative aspect-video bg-muted rounded-lg overflow-hidden border"
+                                >
                                   <img
                                     src={image.url}
                                     alt={image.alt_text || "Project image"}
-                                    className="object-cover rounded-md w-full h-full"
+                                    className="object-cover w-full h-full transition-transform group-hover:scale-105"
                                   />
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    className="absolute top-2 right-2"
-                                    onClick={() => {
-                                      if (!selectedProject?.images) return
-                                      const newImages = [...selectedProject.images]
-                                      newImages.splice(index, 1)
-                                      handleInputChange("images", newImages)
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      className="h-8"
+                                      onClick={() => {
+                                        if (!selectedProject?.images) return
+                                        const newImages = [...selectedProject.images]
+                                        newImages.splice(index, 1)
+                                        handleInputChange("images", newImages)
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Remove
+                                    </Button>
+                                  </div>
+                                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60">
+                                    <Input
+                                      value={image.alt_text || ""}
+                                      onChange={(e) => {
+                                        if (!selectedProject?.images) return
+                                        const newImages = [...selectedProject.images]
+                                        newImages[index] = {
+                                          ...newImages[index],
+                                          alt_text: e.target.value
+                                        }
+                                        handleInputChange("images", newImages)
+                                      }}
+                                      placeholder="Alt text for accessibility"
+                                      className="h-7 text-sm bg-transparent border-muted-foreground/40"
+                                    />
+                                  </div>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <div className="text-center py-8">
-                              <p className="text-muted-foreground">No images uploaded yet</p>
+                            <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                              <div className="space-y-2">
+                                <div className="mx-auto w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                                  <Plus className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <h3 className="font-medium">No images uploaded</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Upload images to showcase your project
+                                </p>
+                              </div>
                             </div>
                           )}
-                          <div className="mt-4">
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0]
-                                if (file && selectedProject) {
-                                  const publicUrl = await handleImageUpload(file)
-                                  if (publicUrl) {
-                                    const newImage = {
-                                      url: publicUrl,
-                                      alt_text: file.name,
-                                      order_index: (selectedProject.images || []).length
-                                    }
-                                    const newImages = [...(selectedProject.images || []), newImage]
-                                    handleInputChange("images", newImages)
-                                  }
-                                }
-                              }}
-                            />
+
+                          {/* Upload Section */}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <div className="h-px flex-1 bg-border" />
+                              <span className="text-sm text-muted-foreground">Upload New Image</span>
+                              <div className="h-px flex-1 bg-border" />
+                            </div>
+                            
+                            <div className="grid gap-4">
+                              <div
+                                className={cn(
+                                  "relative border-2 border-dashed rounded-lg p-4 transition-colors",
+                                  "hover:bg-muted/50 cursor-pointer"
+                                )}
+                                onDragOver={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                }}
+                                onDrop={handleImageDrop}
+                              >
+                                <Input
+                                  type="file"
+                                  accept="image/*"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  onChange={handleFileInputChange}
+                                />
+                                <div className="text-center space-y-2">
+                                  <div className="mx-auto w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                    <Plus className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-medium">
+                                      Drop an image here or click to upload
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Supports: JPG, PNG, GIF, WebP (max 5MB)
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
