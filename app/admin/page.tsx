@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import type { Project, ProjectCreate, ProjectUpdate, ProjectImage, Tool, Tag } from "@/lib/types"
-import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, AlertCircle } from "lucide-react"
+import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, AlertCircle, Check, ChevronsUpDown, X } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,8 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { supabaseClient } from "@/lib/supabase-client"
 import { v4 as uuidv4 } from "uuid"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -329,6 +331,55 @@ export default function AdminPage() {
     }
   }
 
+  const handleToolsChange = async (toolName: string) => {
+    if (!selectedProject) return
+
+    try {
+      // First, check if the tool already exists
+      let existingTool = tools.find(t => t.name.toLowerCase() === toolName.toLowerCase())
+      
+      if (!existingTool) {
+        // If tool doesn't exist, create it with a slug
+        const slug = toolName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+        const response = await fetch('/api/admin/tools', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            name: toolName,
+            slug: slug
+          })
+        })
+        
+        if (!response.ok) {
+          throw new Error(`Failed to create tool: ${toolName}`)
+        }
+        
+        const newTool = await response.json()
+        setTools(prev => [...prev, newTool as Tool])
+        existingTool = newTool
+      }
+
+      // Add the tool if it's not already in the project's tools
+      if (existingTool && !selectedProject.tool_ids?.includes(existingTool.id)) {
+        const newToolIds = [...(selectedProject.tool_ids || []), existingTool.id]
+        handleInputChange("tool_ids", newToolIds)
+      }
+    } catch (error) {
+      console.error('Error handling tools:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update tools",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleRemoveTool = (toolId: string) => {
+    if (!selectedProject) return
+    const newToolIds = selectedProject.tool_ids?.filter(id => id !== toolId) || []
+    handleInputChange("tool_ids", newToolIds)
+  }
+
   const sortedProjects = [...projects].sort((a, b) => {
     if ((a.featured || 0) !== (b.featured || 0)) {
       if (a.featured === 0) return 1
@@ -385,8 +436,8 @@ export default function AdminPage() {
                     <TableHead className="w-[160px]"></TableHead>
                     <TableHead className="w-[250px]">Name</TableHead>
                     <TableHead className="w-[450px]">Description</TableHead>
-                    <TableHead>Featured</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Featured</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -411,19 +462,17 @@ export default function AdminPage() {
                       <TableCell className="font-medium">{project.title}</TableCell>
                       <TableCell className="max-w-[200px] truncate text-muted-foreground">{project.description}</TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-center space-x-2">
                         
                           {project.featured !== undefined && project.featured > 0 && (
                             <Badge variant="outline" className="bg-background">
                               #{project.featured}
                             </Badge>
                           )}
-                          <Badge variant="outline" className="text-xs">
-                            {new Date(project.created_at).toLocaleDateString()}
-                          </Badge>
+                      
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                         <Badge 
                           variant="outline"
                           className={cn(
@@ -487,15 +536,10 @@ export default function AdminPage() {
                             <h3 className="font-medium leading-none">{project.title}</h3>
                             <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
                             <div className="flex flex-wrap gap-1 mt-2">
-                              <Badge
-                                variant={project.status === "published" ? "default" : "secondary"}
-                                className="capitalize"
-                              >
-                                {project.status}
-                              </Badge>
+                  
                               {project.featured !== undefined && project.featured > 0 && (
                                 <Badge variant="outline" className="font-mono bg-background">
-                                  Featured #{project.featured}
+                                  #{project.featured}
                                 </Badge>
                               )}
                             </div>
@@ -622,58 +666,88 @@ export default function AdminPage() {
                         <p className="text-sm text-destructive">{formErrors.description}</p>
                       )}
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="main_image">Main Image URL</Label>
-                      <Input
-                        id="main_image"
-                        value={selectedProject.project_images?.[0]?.url || ""}
-                        onChange={(e) => {
-                          const newImages = [...(selectedProject.project_images || [])]
-                          if (newImages.length === 0) {
-                            newImages.push({
-                              id: "",
-                              project_id: "",
-                              url: e.target.value,
-                              alt_text: "",
-                              order_index: 0,
-                              created_at: new Date().toISOString()
-                            })
-                          } else {
-                            newImages[0] = { ...newImages[0], url: e.target.value }
-                          }
-                          handleInputChange("project_images", newImages)
-                        }}
-                        placeholder="/images/project.jpg"
-                      />
-                      <p className="text-xs text-muted-foreground">Leave as is to use a placeholder image</p>
-                    </div>
+                          <Label htmlFor="tools">Tools</Label>
+                          <div className="space-y-4">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className="w-full justify-between"
+                                >
+                                  <span className="truncate">
+                                    Select or add tools...
+                                  </span>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-full p-0">
+                                <Command>
+                                  <CommandInput placeholder="Search tools..." />
+                                  <CommandEmpty>
+                                    Press enter to add "{selectedProject?.tools?.map(tool => tool.name).join(", ") || ""}"
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {tools.map((tool) => (
+                                      <CommandItem
+                                        key={tool.id}
+                                        onSelect={() => handleToolsChange(tool.name)}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            selectedProject?.tool_ids?.includes(tool.id)
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                        {tool.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="thumbnail_alt">Thumbnail Alt Text</Label>
-                      <Input
-                        id="thumbnail_alt"
-                        value={selectedProject.project_images?.[0]?.alt_text || ""}
-                        onChange={(e) => {
-                          const newImages = [...(selectedProject.project_images || [])]
-                          if (newImages.length === 0) {
-                            newImages.push({
-                              id: "",
-                              project_id: "",
-                              url: "",
-                              alt_text: e.target.value,
-                              order_index: 0,
-                              created_at: new Date().toISOString()
-                            })
-                          } else {
-                            newImages[0] = { ...newImages[0], alt_text: e.target.value }
-                          }
-                          handleInputChange("project_images", newImages)
-                        }}
-                        placeholder="Enter thumbnail alt text"
-                      />
-                    </div>
+                            {/* Display selected tools as badges */}
+                            <div className="flex flex-wrap gap-2">
+                              {selectedProject?.tools?.map((tool) => (
+                                <Badge
+                                  key={tool.id}
+                                  variant="secondary"
+                                  className="flex items-center gap-1"
+                                >
+                                  {tool.name}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-4 w-4 p-0 hover:bg-transparent"
+                                    onClick={() => handleRemoveTool(tool.id)}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Select existing tools or type to create new ones</p>
+                        </div>
 
+                        <div className="space-y-2">
+                          <Label htmlFor="featured">Featured Order</Label>
+                          <Input
+                            id="featured"
+                            type="number"
+                            min={0}
+                            max={99}
+                            value={selectedProject.featured || 0}
+                            onChange={(e) => handleInputChange("featured", parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                          />
+                          <p className="text-xs text-muted-foreground">Lower numbers appear first in featured sections</p>
+                        </div>
+                        
                     <div className="space-y-2">
                       <Label htmlFor="website_url">Website URL</Label>
                       <Input
@@ -683,6 +757,7 @@ export default function AdminPage() {
                         placeholder="Enter project website URL"
                       />
                     </div>
+
                   </TabsContent>
 
                   <TabsContent value="content" className="space-y-4 mt-0">
@@ -791,38 +866,6 @@ export default function AdminPage() {
                       </div>
 
                       <div className="space-y-4 pt-6 border-t">
-                        <div className="space-y-2">
-                          <Label htmlFor="tool_ids">Tools</Label>
-                          <Input
-                            id="tool_ids"
-                            value={selectedProject.tool_ids ? selectedProject.tool_ids.join(", ") : ""}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "tool_ids",
-                                e.target.value
-                                  .split(",")
-                                  .map((tool) => tool.trim())
-                                  .filter(Boolean),
-                              )
-                            }
-                            placeholder="React, Figma, etc."
-                          />
-                          <p className="text-xs text-muted-foreground">Comma separated list of tools used</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="featured">Featured Order</Label>
-                          <Input
-                            id="featured"
-                            type="number"
-                            min={0}
-                            max={99}
-                            value={selectedProject.featured || 0}
-                            onChange={(e) => handleInputChange("featured", parseInt(e.target.value) || 0)}
-                            placeholder="0"
-                          />
-                          <p className="text-xs text-muted-foreground">Lower numbers appear first in featured sections</p>
-                        </div>
 
                         {'id' in selectedProject && (
                           <div className="space-y-2">
