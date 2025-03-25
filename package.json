@@ -38,7 +38,8 @@
     "@radix-ui/react-toggle": "^1.1.1",
     "@radix-ui/react-toggle-group": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.6",
-    "@supabase/supabase-js": "^2.49.3",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/ssr": "^0.6.1",
     "@tailwindcss/typography": "0.5.10",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.20",
@@ -46,7 +47,6 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "3.6.0",
-    "dotenv": "^16.4.7",
     "embla-carousel": "^8.0.0",
     "embla-carousel-auto-scroll": "^8.0.0",
     "embla-carousel-react": "^8.0.0",
@@ -73,9 +73,11 @@
     "zod": "3.22.4"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.49.3",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.4.7",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

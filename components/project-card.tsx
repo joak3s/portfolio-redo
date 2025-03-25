@@ -5,7 +5,7 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import type { Project } from "@/lib/types"
+import type { Project, Tool } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 interface ProjectCardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -26,9 +26,10 @@ interface ProjectCardProps extends React.HTMLAttributes<HTMLDivElement> {
  *   project={{
  *     title: "My Project",
  *     description: "Project description",
- *     images: {
- *       thumbnail: { url: "/path/to/image.jpg", alt: "Project thumbnail" }
- *     }
+ *     project_images: [{
+ *       url: "/path/to/image.jpg",
+ *       alt_text: "Project thumbnail"
+ *     }]
  *   }}
  *   aspect="landscape"
  * />
@@ -57,10 +58,10 @@ export default function ProjectCard({
             aspect === "landscape" ? "aspect-[16/9]" : "aspect-square"
           )}
         >
-          {project.images?.[0] && (
+          {project.project_images?.[0] && (
             <Image
-              src={project.images[0].url}
-              alt={project.images[0].alt || project.title}
+              src={project.project_images[0].url}
+              alt={project.project_images[0].alt_text || project.title}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
@@ -72,17 +73,18 @@ export default function ProjectCard({
             <p className="text-sm text-gray-100 mb-4 line-clamp-2">{project.description}</p>
             {project.tools && project.tools.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {project.tools.slice(0, 3).map((tool) => (
+                {project.tools.slice(0, 3).map((tool: Tool) => (
                   <Badge 
-                    key={tool}
+                    key={tool.id}
                     variant="secondary"
                     className="bg-white/10 text-white hover:bg-white/20"
                   >
-                    {tool}
+                    {tool.name}
                   </Badge>
                 ))}
                 {project.tools.length > 3 && (
                   <Badge 
+                    key="more"
                     variant="secondary"
                     className="bg-white/10 text-white hover:bg-white/20"
                   >

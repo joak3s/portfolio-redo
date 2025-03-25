@@ -1,17 +1,29 @@
-import { getProjectBySlug } from "@/lib/cms"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tool } from "@/lib/types"
+
+async function getProject(slug: string) {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/projects/${slug}`, {
+    next: { revalidate: 3600 } // Revalidate every hour
+  })
+
+  if (!res.ok) {
+    return null
+  }
+
+  return res.json()
+}
 
 export default async function ProjectDetailPage({
   params,
 }: {
   params: { slug: string }
 }) {
-  const project = await getProjectBySlug(params.slug)
+  const project = await getProject(params.slug)
 
   if (!project) {
     notFound()
@@ -30,14 +42,14 @@ export default async function ProjectDetailPage({
 
       <div className="space-y-12 max-w-4xl mx-auto">
         <div>
-          <h1 className="text-4xl font-bold mb-4">{project.name}</h1>
-          <p className="text-xl text-muted-foreground">{project.short_summary}</p>
+          <h1 className="text-4xl font-bold mb-4">{project.title}</h1>
+          <p className="text-xl text-muted-foreground">{project.description}</p>
         </div>
 
         <div className="relative aspect-video w-full overflow-hidden rounded-lg">
           <Image
             src={project.main_image || "/placeholder.svg"}
-            alt={project.name}
+            alt={project.title}
             fill
             className="object-cover"
             priority
@@ -45,16 +57,16 @@ export default async function ProjectDetailPage({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {project.tools.map((tool) => (
-            <Badge key={tool} variant="secondary">
-              {tool}
+          {project.tools.map((tool: Tool) => (
+            <Badge key={tool.id} variant="secondary">
+              {tool.name}
             </Badge>
           ))}
         </div>
 
-        {project.website_link && (
+        {project.website_url && (
           <div>
-            <Link href={project.website_link} target="_blank" rel="noopener noreferrer">
+            <Link href={project.website_url} target="_blank" rel="noopener noreferrer">
               <Button className="group">
                 Visit Website
                 <ExternalLink className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />

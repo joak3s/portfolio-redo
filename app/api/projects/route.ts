@@ -1,104 +1,42 @@
 import { NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import path from 'path'
-import { Project, ProjectUpdate } from '@/lib/types'
-
-const dataFilePath = path.join(process.cwd(), 'data', 'projects.json')
-const projectsDirectory = path.join(process.cwd(), 'public', 'projects')
-
-async function getProjects(): Promise<Project[]> {
-  const data = await fs.readFile(dataFilePath, 'utf8')
-  return JSON.parse(data)
-}
-
-async function saveProjects(projects: Project[]): Promise<void> {
-  await fs.writeFile(dataFilePath, JSON.stringify(projects, null, 2))
-}
+import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export async function GET() {
   try {
-    const projects = await getProjects()
-    return NextResponse.json(projects)
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
-  }
-}
+    const { data: projects, error } = await supabaseAdmin
+      .from('projects')
+      .select(`
+        *,
+        project_images (*),
+        tools:project_tools (
+          tool:tools (*)
+        ),
+        tags:project_tags (
+          tag:tags (*)
+        )
+      `)
+      .order('featured', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: false })
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const projects = await getProjects()
-    
-    // Create project directory if it doesn't exist
-    const projectDir = path.join(projectsDirectory, body.slug)
-    await fs.mkdir(projectDir, { recursive: true })
-    
-    const newProject: Project = {
-      ...body,
-      id: crypto.randomUUID(),
-      publishedAt: new Date().toISOString(),
-      status: 'draft',
-      images: body.images || []
+    if (error) {
+      console.error('Error fetching projects:', error)
+      throw error
     }
-    
-    await saveProjects([...projects, newProject])
-    return NextResponse.json(newProject)
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })
-  }
-}
 
-export async function PUT(request: Request) {
-  try {
-    const update: ProjectUpdate = await request.json()
-    const projects = await getProjects()
-    
-    const index = projects.findIndex(p => p.id === update.id)
-    if (index === -1) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    const updatedProject = {
-      ...projects[index],
-      ...update,
-      updatedAt: new Date().toISOString()
-    }
-    
-    projects[index] = updatedProject
-    await saveProjects(projects)
-    
-    return NextResponse.json(updatedProject)
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
-  }
-}
+    // Transform the data to match the Project type
+    const transformedProjects = projects.map(project => ({
+      ...project,
+      tools: project.tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
+      tags: project.tags?.map((pt: any) => pt.tag).filter(Boolean) || []
+    }))
 
-export async function DELETE(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-    
-    if (!id) {
-      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
-    }
-    
-    const projects = await getProjects()
-    const project = projects.find(p => p.id === id)
-    
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    
-    // Delete project directory and its contents
-    const projectDir = path.join(projectsDirectory, project.slug)
-    await fs.rm(projectDir, { recursive: true, force: true })
-    
-    const updatedProjects = projects.filter(p => p.id !== id)
-    await saveProjects(updatedProjects)
-    
-    return NextResponse.json({ success: true })
+    return NextResponse.json(transformedProjects)
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 })
+    console.error('Error in GET /api/projects:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch projects', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
   }
 }
 

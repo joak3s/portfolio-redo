@@ -1,79 +1,121 @@
-import { getProjectBySlug, updateProjectBySlug, deleteProjectBySlug } from "@/lib/cms"
 import { NextResponse } from "next/server"
-import { promises as fs } from 'fs'
-import path from 'path'
-import { Project } from '@/lib/types'
+import { supabaseAdmin } from "@/lib/supabase-admin"
+import type { Project, Tool, Tag, ProjectImage } from "@/lib/types"
 
-const dataFilePath = path.join(process.cwd(), 'data', 'projects.json')
-
-async function getProjects(): Promise<Project[]> {
-  const data = await fs.readFile(dataFilePath, 'utf8')
-  return JSON.parse(data)
+interface ProjectWithRelations extends Project {
+  project_images: ProjectImage[]
+  project_tools: {
+    tool: Tool
+  }[]
+  project_tags: {
+    tag: Tag
+  }[]
 }
 
-// Get a single project by slug (public view)
 export async function GET(
   request: Request,
   { params }: { params: { slug: string } }
 ) {
   try {
-    const slug = await Promise.resolve(params.slug)
-    const projects = await getProjects()
-    const project = projects.find(p => p.slug === slug && p.status === 'published')
+    const { data: project, error } = await supabaseAdmin
+      .from('projects')
+      .select(`
+        *,
+        project_images (
+          id,
+          project_id,
+          url,
+          alt_text,
+          order_index,
+          created_at
+        ),
+        project_tools (
+          tool:tools (
+            id,
+            name,
+            created_at
+          )
+        ),
+        project_tags (
+          tag:tags (
+            id,
+            name,
+            created_at
+          )
+        )
+      `)
+      .eq('slug', params.slug)
+      .eq('status', 'published')
+      .single()
+
+    if (error) {
+      console.error('Error fetching project:', error)
+      return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 })
+    }
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Return a filtered version for public consumption
-    const publicProject = {
-      id: project.id,
-      title: project.title,
-      slug: project.slug,
-      description: project.description,
-      content: project.content,
-      images: project.images,
-      tags: project.tags,
-      tools: project.tools,
-      publishedAt: project.publishedAt
+    // Transform the data to match our expected format
+    const transformedProject = {
+      ...project,
+      project_images: project.project_images || [],
+      tools: project.project_tools?.map((pt: { tool: Tool }) => pt.tool) || [],
+      tags: project.project_tags?.map((pt: { tag: Tag }) => pt.tag) || []
     }
 
-    return NextResponse.json(publicProject)
+    return NextResponse.json(transformedProject)
   } catch (error) {
+    console.error('Error in GET /api/projects/[slug]:', error)
     return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 })
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { slug: string } }) {
+export async function PUT(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
   try {
     const body = await request.json()
-    const existingProject = await getProjectBySlug(params.slug)
+    const { data: project, error } = await supabaseAdmin
+      .from('projects')
+      .update(body)
+      .eq('slug', params.slug)
+      .select()
+      .single()
 
-    if (!existingProject) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    if (error) {
+      console.error('Error updating project:', error)
+      return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
     }
 
-    const updatedProject = await updateProjectBySlug(params.slug, body)
-    return NextResponse.json(updatedProject)
+    return NextResponse.json(project)
   } catch (error) {
-    console.error("Error updating project:", error)
-    return NextResponse.json({ error: "Failed to update project" }, { status: 500 })
+    console.error('Error in PUT /api/projects/[slug]:', error)
+    return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { slug: string } }) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: { slug: string } }
+) {
   try {
-    const existingProject = await getProjectBySlug(params.slug)
+    const { error } = await supabaseAdmin
+      .from('projects')
+      .delete()
+      .eq('slug', params.slug)
 
-    if (!existingProject) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    if (error) {
+      console.error('Error deleting project:', error)
+      return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 })
     }
 
-    await deleteProjectBySlug(params.slug)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error deleting project:", error)
-    return NextResponse.json({ error: "Failed to delete project" }, { status: 500 })
+    console.error('Error in DELETE /api/projects/[slug]:', error)
+    return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 })
   }
 }
 

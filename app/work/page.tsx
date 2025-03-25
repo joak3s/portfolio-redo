@@ -6,56 +6,72 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search } from "lucide-react"
 import ProjectCard from "@/components/project-card"
-import type { Project } from "@/lib/types"
+import type { Project, Tool } from "@/lib/types"
 
 export default function WorkPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
+  const [tools, setTools] = useState<Tool[]>([])
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Extract unique categories from projects, with null checks
-  const categories = ["All", ...new Set(projects.flatMap((p) => p.tools?.map((tool) => tool) || []).filter(Boolean))]
-
+  // Fetch both projects and tools
   useEffect(() => {
-    async function fetchProjects() {
+    async function fetchData() {
       try {
-        const response = await fetch("/api/projects")
-        const data = await response.json()
-        setProjects(data)
-        setFilteredProjects(data)
+        const [projectsResponse, toolsResponse] = await Promise.all([
+          fetch("/api/projects"),
+          fetch("/api/tools")
+        ])
+        
+        const [projectsData, toolsData] = await Promise.all([
+          projectsResponse.json(),
+          toolsResponse.json()
+        ])
+
+        setProjects(projectsData)
+        setTools(toolsData)
+        setFilteredProjects(projectsData)
         setLoading(false)
       } catch (error) {
-        console.error("Error fetching projects:", error)
+        console.error("Error fetching data:", error)
         setLoading(false)
       }
     }
 
-    fetchProjects()
+    fetchData()
   }, [])
 
   useEffect(() => {
     let result = projects
 
+    // Filter by search term
     if (searchTerm) {
       result = result.filter(
         (project) =>
           project.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          project.tools?.some((tool) => tool.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          project.tools?.some((tool) => tool.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
           false
       )
     }
 
+    // Filter by tool
     if (activeFilter && activeFilter !== "All") {
-      result = result.filter((project) => project.tools?.includes(activeFilter))
+      result = result.filter((project) => 
+        project.tools?.some(tool => tool.name === activeFilter)
+      )
     }
 
+    // Only show published projects
     result = result.filter((project) => project.status === 'published')
 
     setFilteredProjects(result)
   }, [searchTerm, activeFilter, projects])
+
+  // Create filter categories from available tools
+  const categories = ["All", ...tools.map(tool => tool.name)]
 
   return (
     <div className="container py-12">

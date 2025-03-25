@@ -28,14 +28,33 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const projects = await getProjects()
-    const project = projects.find(p => p.id === params.id)
+    const { data: project, error } = await supabaseAdmin
+      .from('projects')
+      .select(`
+        *,
+        project_images (*),
+        project_tools (
+          tool:tools (*)
+        ),
+        project_tags (
+          tag:tags (*)
+        )
+      `)
+      .eq('id', params.id)
+      .single()
     
-    if (!project) {
+    if (error || !project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    return NextResponse.json(project)
+    // Transform the data to match the Project type
+    const transformedProject = {
+      ...project,
+      tools: project.project_tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
+      tags: project.project_tags?.map((pt: any) => pt.tag).filter(Boolean) || []
+    }
+
+    return NextResponse.json(transformedProject)
   } catch (error) {
     console.error('Error fetching project:', error)
     return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 })

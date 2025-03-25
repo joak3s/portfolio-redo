@@ -5,11 +5,16 @@ import Image from 'next/image'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
-import { ProjectImage } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+interface GalleryImage {
+  url: string
+  alt: string
+  caption?: string
+}
+
 interface ProjectImageGalleryProps {
-  images: ProjectImage[]
+  images: GalleryImage[]
   className?: string
 }
 
@@ -41,7 +46,7 @@ export function ProjectImageGallery({ images, className }: ProjectImageGalleryPr
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {images.map((image, index) => (
           <div
-            key={`${image.url}-${index}`}
+            key={`gallery-image-${index}-${image.url}`}
             className="relative aspect-[4/3] overflow-hidden rounded-lg cursor-pointer group"
             onClick={() => setSelectedImageIndex(index)}
           >

@@ -1,5 +1,16 @@
-import { getProjects } from "@/lib/cms"
 import { ProjectCarousel } from "@/components/project-carousel"
+
+async function getProjects() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/projects`, {
+    next: { revalidate: 3600 } // Revalidate every hour
+  })
+
+  if (!res.ok) {
+    return []
+  }
+
+  return res.json()
+}
 
 export default async function CarouselDemoPage() {
   const projects = await getProjects()

@@ -1,16 +1,35 @@
 "use server"
 
-import fs from "fs/promises"
-import path from "path"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 import type { Project } from "./types"
-
-const dataFilePath = path.join(process.cwd(), "data", "projects.json")
 
 // Read all projects
 export async function getProjects(): Promise<Project[]> {
   try {
-    const data = await fs.readFile(dataFilePath, "utf8")
-    return JSON.parse(data) as Project[]
+    const { data: projects, error } = await supabaseAdmin
+      .from('projects')
+      .select(`
+        *,
+        project_images (*),
+        project_tools (
+          tool:tools (*)
+        ),
+        project_tags (
+          tag:tags (*)
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error("Error reading projects:", error)
+      return []
+    }
+
+    return projects.map(project => ({
+      ...project,
+      tools: project.project_tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
+      tags: project.project_tags?.map((pt: any) => pt.tag).filter(Boolean) || []
+    }))
   } catch (error) {
     console.error("Error reading projects:", error)
     return []
@@ -20,8 +39,31 @@ export async function getProjects(): Promise<Project[]> {
 // Get a single project by slug
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   try {
-    const projects = await getProjects()
-    return projects.find((project) => project.slug === slug) || null
+    const { data: project, error } = await supabaseAdmin
+      .from('projects')
+      .select(`
+        *,
+        project_images (*),
+        project_tools (
+          tool:tools (*)
+        ),
+        project_tags (
+          tag:tags (*)
+        )
+      `)
+      .eq('slug', slug)
+      .single()
+
+    if (error || !project) {
+      console.error("Error getting project by slug:", error)
+      return null
+    }
+
+    return {
+      ...project,
+      tools: project.project_tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
+      tags: project.project_tags?.map((pt: any) => pt.tag).filter(Boolean) || []
+    }
   } catch (error) {
     console.error("Error getting project by slug:", error)
     return null
@@ -31,8 +73,31 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
 // Get featured projects
 export async function getFeaturedProjects(): Promise<Project[]> {
   try {
-    const projects = await getProjects()
-    return projects.filter((project) => project.featured_order > 0).sort((a, b) => a.featured_order - b.featured_order)
+    const { data: projects, error } = await supabaseAdmin
+      .from('projects')
+      .select(`
+        *,
+        project_images (*),
+        project_tools (
+          tool:tools (*)
+        ),
+        project_tags (
+          tag:tags (*)
+        )
+      `)
+      .gt('featured_order', 0)
+      .order('featured_order', { ascending: true })
+
+    if (error) {
+      console.error("Error getting featured projects:", error)
+      return []
+    }
+
+    return projects.map(project => ({
+      ...project,
+      tools: project.project_tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
+      tags: project.project_tags?.map((pt: any) => pt.tag).filter(Boolean) || []
+    }))
   } catch (error) {
     console.error("Error getting featured projects:", error)
     return []
@@ -51,7 +116,7 @@ export async function createProject(project: Omit<Project, "id">): Promise<Proje
     }
 
     const newProject = { ...project, id: newId }
-    await fs.writeFile(dataFilePath, JSON.stringify([...projects, newProject], null, 2))
+    await supabaseAdmin.from('projects').insert([newProject])
 
     return newProject
   } catch (error) {
@@ -76,9 +141,7 @@ export async function updateProjectBySlug(slug: string, project: Partial<Project
     }
 
     const updatedProject = { ...projects[index], ...project }
-    projects[index] = updatedProject
-
-    await fs.writeFile(dataFilePath, JSON.stringify(projects, null, 2))
+    await supabaseAdmin.from('projects').update(updatedProject).eq('slug', slug)
 
     return updatedProject
   } catch (error) {
@@ -97,7 +160,7 @@ export async function deleteProjectBySlug(slug: string): Promise<void> {
       throw new Error(`Project with slug ${slug} not found`)
     }
 
-    await fs.writeFile(dataFilePath, JSON.stringify(filteredProjects, null, 2))
+    await supabaseAdmin.from('projects').delete().eq('slug', slug)
   } catch (error) {
     console.error("Error deleting project by slug:", error)
     throw error
