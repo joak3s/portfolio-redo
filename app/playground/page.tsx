@@ -9,15 +9,34 @@ import EffectToggle from "@/components/playground/effect-toggle"
 import StreamingText from "../../components/playground/streaming-text"
 import StreamingTextSubtle from "../../components/playground/streaming-text-subtle"
 import { Testimonials } from '../../components/Testimonials'
+import { ProjectCarousel } from '@/components/project-carousel'
+import { Project } from '@/lib/types'
 
 export default function PlaygroundPage() {
   const [currentEffect, setCurrentEffect] = useState<"particles" | "gradient">("particles")
   const [mounted, setMounted] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([])
   const { theme } = useTheme()
 
   // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  // Fetch projects
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await fetch('/api/projects')
+        if (!response.ok) throw new Error('Failed to fetch projects')
+        const data = await response.json()
+        setProjects(data)
+      } catch (error) {
+        console.error('Error fetching projects:', error)
+      }
+    }
+
+    fetchProjects()
   }, [])
 
   if (!mounted) {
@@ -37,7 +56,7 @@ export default function PlaygroundPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="max-w-4xl mx-auto"
+          style={{ maxWidth: '56rem', margin: '0 auto' }}
         >
           <h1 className="text-4xl font-bold mb-6">Interactive Playground</h1>
           <p className="text-xl text-muted-foreground mb-8">
@@ -47,6 +66,12 @@ export default function PlaygroundPage() {
 
           <div className="mb-12">
             <EffectToggle currentEffect={currentEffect} onChange={(effect) => setCurrentEffect(effect)} />
+          </div>
+
+          {/* Project Carousel Demo */}
+          <div className="mb-16 bg-background/80 backdrop-blur-sm p-8 rounded-lg border shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-center">Project Carousel Demo</h2>
+            <ProjectCarousel projects={projects} />
           </div>
 
           <div className="grid gap-8 md:grid-cols-2">
