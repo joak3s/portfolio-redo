@@ -70,34 +70,41 @@ export function ProjectCarousel({ projects, className }: ProjectCarouselProps) {
     >
       <div className="overflow-hidden" ref={emblaRef}>
         <div className="flex">
-          {projects.map((project, index) => (
-            <div
-              className="flex-[0_0_90%] sm:flex-[0_0_40%] md:flex-[0_0_30%] lg:flex-[0_0_25%] min-w-0 pl-4 first:pl-0"
-              key={project.id}
-            >
-              <Link href={`/featured/${project.slug}`}>
-                <Card className="overflow-hidden h-full transition-all hover:shadow-lg dark:hover:shadow-primary/10">
-                  <div className="relative h-48 overflow-hidden">
-                    <Image
-                      src={project.main_image || "/placeholder.svg"}
-                      alt={project.name}
-                      fill
-                      className="object-cover transition-transform duration-300 hover:scale-105"
-                    />
-                    {project.featured_order > 0 && (
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="secondary">Featured</Badge>
-                      </div>
-                    )}
-                  </div>
-                  <CardContent className="pt-4">
-                    <h3 className="text-lg font-semibold mb-2 line-clamp-1">{project.name}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{project.short_summary}</p>
-                  </CardContent>
-                </Card>
-              </Link>
-            </div>
-          ))}
+          {projects.map((project, index) => {
+            // Get the first project image or use placeholder
+            const projectImage = project.project_images && project.project_images.length > 0 
+              ? project.project_images[0].url 
+              : "/placeholder.svg"
+              
+            return (
+              <div
+                className="flex-[0_0_90%] sm:flex-[0_0_40%] md:flex-[0_0_30%] lg:flex-[0_0_25%] min-w-0 pl-4 first:pl-0"
+                key={project.id}
+              >
+                <Link href={`/work/${project.slug}`}>
+                  <Card className="overflow-hidden h-full transition-all hover:shadow-lg dark:hover:shadow-primary/10">
+                    <div className="relative h-48 overflow-hidden">
+                      <Image
+                        src={projectImage}
+                        alt={project.title}
+                        fill
+                        className="object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                      {project.featured && project.featured > 0 && (
+                        <div className="absolute top-2 right-2">
+                          <Badge variant="secondary">Featured</Badge>
+                        </div>
+                      )}
+                    </div>
+                    <CardContent className="pt-4">
+                      <h3 className="text-lg font-semibold mb-2 line-clamp-1">{project.title}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            )
+          })}
         </div>
       </div>
 

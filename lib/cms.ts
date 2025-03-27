@@ -85,8 +85,9 @@ export async function getFeaturedProjects(): Promise<Project[]> {
           tag:tags (*)
         )
       `)
-      .gt('featured_order', 0)
-      .order('featured_order', { ascending: true })
+      .is('featured', true)
+      .order('featured', { ascending: true })
+      .limit(5)
 
     if (error) {
       console.error("Error getting featured projects:", error)

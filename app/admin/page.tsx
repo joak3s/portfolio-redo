@@ -640,7 +640,7 @@ export default function AdminPage() {
                       <TableCell>
                         <div className="flex items-center justify-center space-x-2">
                           {typeof project.featured === 'number' && project.featured > 0 && (
-                            <Badge variant="outline" className="bg-background">
+                            <Badge variant="outline" className="bg-background" className="font-mono">
                               #{project.featured}
                             </Badge>
                           )}

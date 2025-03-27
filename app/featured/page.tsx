@@ -1,70 +1,146 @@
-import { getFeaturedProjects } from "@/lib/cms"
+'use client'
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { ProjectCarousel } from "@/components/project-carousel"
+import { supabaseClient } from "@/lib/supabase-browser"
+import type { Project } from "@/lib/types"
 
-export default async function FeaturedPage() {
-  const featuredProjects = await getFeaturedProjects()
+export default function FeaturedPage() {
+  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchFeaturedProjects() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('projects')
+          .select(`
+            *,
+            project_images (*),
+            tools:project_tools (
+              tool:tools (*)
+            )
+          `)
+          .eq('status', 'published')
+          .not('featured', 'is', null)
+          .gt('featured', 0)
+          .order('featured', { ascending: true })
+          .limit(6)
+
+        if (error) throw error
+
+        const projects = data.map(project => ({
+          ...project,
+          status: (project.status as "published" | "draft") || "draft",
+          tools: project.tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
+        }))
+
+        setFeaturedProjects(projects)
+      } catch (error) {
+        console.error("Error fetching featured projects:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchFeaturedProjects()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="container py-12">
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container py-12">
-      <h1 className="text-4xl font-bold mb-4">Featured Work</h1>
-      <p className="text-muted-foreground mb-8 max-w-2xl">
-        Browse through a selection of my featured projects that showcase my expertise in UX design and AI development.
-      </p>
+      <div className="opacity-0 animate-fade-in-up" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
+        <h1 className="text-4xl font-bold mb-4">Featured Work</h1>
+        <p className="text-muted-foreground mb-8 max-w-2xl">
+          Browse through a selection of my featured projects that showcase my expertise in UX design and AI development.
+        </p>
 
-      <div className="mb-12">
-        <ProjectCarousel projects={featuredProjects.slice(0, 5)} />
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+          {featuredProjects.map((project, index) => {
+            // Determine grid span based on index for 3-row asymmetrical layout
+            const spanClasses = [
+              "md:col-span-6", // Row 1: First project (half width)
+              "md:col-span-6", // Row 1: Second project (half width)
+              "md:col-span-4", // Row 2: Third project (one-third width)
+              "md:col-span-4", // Row 2: Fourth project (one-third width)
+              "md:col-span-4", // Row 2: Fifth project (one-third width)
+              "md:col-span-12", // Row 3: Sixth project (full width)
+            ][index]
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mt-16">
-        {featuredProjects.map((project, index) => {
-          // Determine grid span based on index for asymmetrical layout
-          const spanClasses = [
-            "md:col-span-12", // First project spans full width
-            "md:col-span-7", // Second project spans 7 columns
-            "md:col-span-5", // Third project spans 5 columns
-            "md:col-span-6", // Fourth project spans 6 columns
-            "md:col-span-6", // Fifth project spans 6 columns
-            "md:col-span-12", // Sixth project spans full width
-          ][index % 6]
+            // Get the first project image or placeholder
+            const projectImage = project.project_images && project.project_images.length > 0 
+              ? project.project_images[0].url 
+              : "/placeholder.svg"
 
-          return (
-            <div key={project.id} className={`${spanClasses} group`}>
-              <Link href={`/featured/${project.slug}`} className="block h-full">
-                <div className="relative overflow-hidden rounded-lg aspect-video mb-4 group-hover:shadow-xl transition-all duration-300">
-                  <Image
-                    src={project.main_image || "/placeholder.svg"}
-                    alt={project.name}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </div>
+            return (
+              <div 
+                key={project.id} 
+                className={`${spanClasses} group opacity-0 animate-fade-in-up`}
+                style={{ animationDelay: `${index * 0.1 + 0.2}s`, animationFillMode: 'forwards' }}
+              >
+                <Link href={`/work/${project.slug}`} className="block h-full">
+                  <div className={`relative overflow-hidden rounded-lg ${index === 5 ? 'aspect-[21/9]' : 'aspect-video'} mb-4 group-hover:shadow-xl transition-all duration-300`}>
+                    <Image
+                      src={projectImage}
+                      alt={project.title}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </div>
 
-                <h2 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors duration-300">
-                  {project.name}
-                </h2>
+                  <h2 className={`${index === 5 ? 'text-3xl' : 'text-2xl'} font-bold mb-2 group-hover:text-primary transition-colors duration-300`}>
+                    {project.title}
+                  </h2>
 
-                <p className="text-muted-foreground mb-4 line-clamp-2">{project.short_summary}</p>
+                  <p className="text-muted-foreground mb-4 line-clamp-2">{project.description}</p>
 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {project.tools.map((tool) => (
-                    <Badge key={tool} variant="secondary" className="text-xs">
-                      {tool}
-                    </Badge>
-                  ))}
-                </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {project.tools && project.tools.slice(0, 3).map((tool) => (
+                      <Badge key={tool.id} variant="secondary" className="text-xs">
+                        {tool.name}
+                      </Badge>
+                    ))}
+                    {project.tools && project.tools.length > 3 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{project.tools.length - 3} more
+                      </Badge>
+                    )}
+                  </div>
 
-                <div className="flex items-center text-sm font-medium">
-                  View Case Study
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </div>
-              </Link>
-            </div>
-          )
-        })}
+                  <div className="flex items-center text-sm font-medium">
+                    View Case Study
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </div>
+                </Link>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center space-x-4 mb-8 my-16">
+          <div className="h-px flex-1 bg-border"></div>
+          <h2 className="text-2xl font-semibold">More Projects</h2>
+          <div className="h-px flex-1 bg-border"></div>
+        </div>
+
+        <div className="mb-16">
+          <ProjectCarousel projects={featuredProjects} />
+        </div>
       </div>
     </div>
   )
