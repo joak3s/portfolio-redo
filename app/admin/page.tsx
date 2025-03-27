@@ -20,7 +20,7 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { supabaseClient } from "@/lib/supabase"
+import { supabaseClient } from "@/lib/supabase-browser"
 import { v4 as uuidv4 } from "uuid"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -79,7 +79,7 @@ export default function AdminPage() {
       if (fetchError) throw fetchError
       
       // Ensure status is properly typed
-      const typedProjects = (data || []).map(project => ({
+      const typedProjects = (data || []).map((project: any) => ({
         ...project,
         status: (project.status || 'draft') as 'draft' | 'published'
       })) as Project[]
@@ -640,7 +640,7 @@ export default function AdminPage() {
                       <TableCell>
                         <div className="flex items-center justify-center space-x-2">
                           {typeof project.featured === 'number' && project.featured > 0 && (
-                            <Badge variant="outline" className="bg-background" className="font-mono">
+                            <Badge variant="outline" className="bg-background font-mono">
                               #{project.featured}
                             </Badge>
                           )}
