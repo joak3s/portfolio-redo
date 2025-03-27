@@ -10,6 +10,7 @@ import Link from "next/link"
 import type { Project, Tool } from "@/lib/types"
 import { ProjectImageGallery } from "@/components/project-image-gallery"
 import { cn } from "@/lib/utils"
+import { supabaseClient } from "@/lib/supabase-browser"
 
 interface ProjectContentProps {
   slug: string
@@ -24,14 +25,32 @@ export function ProjectContent({ slug }: ProjectContentProps) {
     async function fetchProject() {
       try {
         setIsLoading(true)
-        const response = await fetch(`/api/projects/${slug}`)
         
-        if (!response.ok) {
+        // Use Supabase client directly instead of API route
+        const { data, error: fetchError } = await supabaseClient
+          .from('projects')
+          .select(`
+            *,
+            project_images (*),
+            tools:project_tools (
+              tool:tools (*)
+            )
+          `)
+          .eq('slug', slug)
+          .eq('status', 'published')
+          .single()
+        
+        if (fetchError) throw fetchError
+        
+        if (!data) {
           throw new Error("Project not found")
         }
-
-        const data = await response.json()
-        setProject(data)
+        
+        setProject({
+          ...data,
+          status: data.status as "published" | "draft" || "draft",
+          tools: data.tools?.map((pt: any) => pt.tool).filter(Boolean) || []
+        })
       } catch (error) {
         console.error("Error fetching project:", error)
         setError(error instanceof Error ? error.message : "Failed to fetch project")
@@ -41,7 +60,7 @@ export function ProjectContent({ slug }: ProjectContentProps) {
     }
 
     fetchProject()
-  }, [slug])
+  }, [slug, supabaseClient])
 
   if (isLoading) {
     return (

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Search } from "lucide-react"
 import ProjectCard from "@/components/project-card"
 import type { Project, Tool } from "@/lib/types"
+import { supabaseClient } from "@/lib/supabase-browser"
 
 export default function WorkPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -20,19 +21,37 @@ export default function WorkPage() {
   useEffect(() => {
     async function fetchData() {
       try {
+        // Use Supabase client directly instead of API routes
         const [projectsResponse, toolsResponse] = await Promise.all([
-          fetch("/api/projects"),
-          fetch("/api/tools")
+          supabaseClient
+            .from('projects')
+            .select(`
+              *,
+              project_images (*),
+              tools:project_tools (
+                tool:tools (*)
+              )
+            `)
+            .eq('status', 'published')
+            .order('featured', { ascending: true, nullsFirst: false }),
+          supabaseClient
+            .from('tools')
+            .select('*')
+            .order('name')
         ])
         
-        const [projectsData, toolsData] = await Promise.all([
-          projectsResponse.json(),
-          toolsResponse.json()
-        ])
+        if (projectsResponse.error) throw projectsResponse.error
+        if (toolsResponse.error) throw toolsResponse.error
 
-        setProjects(projectsData)
-        setTools(toolsData)
-        setFilteredProjects(projectsData)
+        const typedProjects = projectsResponse.data?.map((project: any) => ({
+          ...project,
+          status: project.status as "published" | "draft" || "draft",
+          tools: project.tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
+        })) || []
+
+        setProjects(typedProjects)
+        setTools(toolsResponse.data || [])
+        setFilteredProjects(typedProjects)
         setLoading(false)
       } catch (error) {
         console.error("Error fetching data:", error)
@@ -41,7 +60,7 @@ export default function WorkPage() {
     }
 
     fetchData()
-  }, [])
+  }, [supabaseClient])
 
   useEffect(() => {
     let result = projects
@@ -64,7 +83,7 @@ export default function WorkPage() {
       )
     }
 
-    // Only show published projects
+    // Only show published projects (redundant since we filtered in the query, but keeping for safety)
     result = result.filter((project) => project.status === 'published')
 
     setFilteredProjects(result)

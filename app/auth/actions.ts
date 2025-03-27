@@ -2,17 +2,18 @@
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { createServerComponentClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function signIn(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const returnUrl = formData.get('returnUrl') as string || '/admin'
 
   if (!email || !password) {
     return redirect('/auth/login?error=Please provide both email and password')
   }
 
-  const supabase = await createServerComponentClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     const { error } = await supabase.auth.signInWithPassword({
@@ -40,7 +41,7 @@ export async function signIn(formData: FormData) {
       maxAge: 60 * 60 * 24 * 7, // 1 week
     })
 
-    return redirect('/admin')
+    return redirect(returnUrl)
   } catch (error) {
     console.error('Sign in error:', error)
     return redirect('/auth/login?error=An unexpected error occurred')
@@ -48,7 +49,7 @@ export async function signIn(formData: FormData) {
 }
 
 export async function signOut() {
-  const supabase = await createServerComponentClient()
+  const supabase = await createServerSupabaseClient()
 
   try {
     const { error } = await supabase.auth.signOut()

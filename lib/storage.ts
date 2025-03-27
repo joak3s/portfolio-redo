@@ -1,4 +1,4 @@
-import { supabaseClient } from './supabase-client'
+import { supabaseClient } from './supabase-browser'
 
 const BUCKET_NAME = 'project-images'
 

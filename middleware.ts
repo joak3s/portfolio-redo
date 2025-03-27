@@ -1,30 +1,28 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
-
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next()
+  
+  // Create a Supabase client using the SSR package
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          return req.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          response.cookies.set({
+          res.cookies.set({
             name,
             value,
             ...options,
           })
         },
         remove(name: string, options: CookieOptions) {
-          response.cookies.set({
+          res.cookies.set({
             name,
             value: '',
             ...options,
@@ -33,28 +31,41 @@ export async function middleware(request: NextRequest) {
       },
     }
   )
-
+  
   try {
-    // Get session from Supabase
-    const { data: { session }, error } = await supabase.auth.getSession()
-
-    // If no session or error, redirect to login
-    if (!session || error) {
-      const redirectUrl = request.nextUrl.clone()
+    // Refresh session if it exists
+    const { data } = await supabase.auth.getSession()
+    
+    // Skip auth check for login page to avoid redirect loop
+    if (req.nextUrl.pathname === '/auth/login') {
+      return res
+    }
+    
+    // For admin routes, redirect to login if no session
+    if (req.nextUrl.pathname.startsWith('/admin') && !data.session) {
+      // Store the original URL to redirect back after login
+      const redirectUrl = req.nextUrl.clone()
       redirectUrl.pathname = '/auth/login'
-      redirectUrl.searchParams.set('redirect', request.nextUrl.pathname)
+      
+      // Add the return URL as a query parameter
+      redirectUrl.searchParams.set('returnUrl', req.nextUrl.pathname)
+      
       return NextResponse.redirect(redirectUrl)
     }
-
-    // Continue to protected route
-    return response
+    
+    // Session exists or non-protected route, continue
+    return res
   } catch (error) {
-    console.error('Middleware error:', error)
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    console.error('Middleware auth error:', error)
+    return res
   }
 }
 
-// Protect admin routes
 export const config = {
-  matcher: ['/admin/:path*']
+  matcher: [
+    // Apply this middleware to admin routes and API calls
+    '/admin/:path*',
+    '/api/admin/:path*',
+    '/auth/login',
+  ],
 } 

@@ -49,12 +49,16 @@ export default function AdminPage() {
   const checkAuth = async () => {
     try {
       const { data: { session }, error: authError } = await supabaseClient.auth.getSession()
-      if (authError || !session) {
-        router.push('/auth/login')
+      if (authError) {
+        console.error('Auth check error:', authError)
+        toast({
+          title: "Authentication Error",
+          description: "Please try logging in again",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error('Auth check error:', error)
-      router.push('/auth/login')
     }
   }
 
@@ -200,20 +204,79 @@ export default function AdminPage() {
       setIsSaving(true)
       const isUpdate = 'id' in selectedProject
       
+      // Create a sanitized copy of the project with cleaned data
+      const sanitizedProject = { ...selectedProject };
+      
+      // Ensure images exists and is valid
+      sanitizedProject.images = sanitizedProject.images || [];
+      sanitizedProject.images = sanitizedProject.images
+        .filter(img => img && typeof img === 'object' && img.url)
+        .map((img, index) => ({
+          url: img.url,
+          alt_text: img.alt_text || '',
+          order_index: img.order_index !== undefined ? img.order_index : index
+        }));
+      
+      // Ensure tool_ids exists and is valid
+      sanitizedProject.tool_ids = sanitizedProject.tool_ids || [];
+      sanitizedProject.tool_ids = sanitizedProject.tool_ids
+        .filter(id => id && typeof id === 'string');
+      
+      // Ensure tag_ids exists and is valid
+      sanitizedProject.tag_ids = sanitizedProject.tag_ids || [];
+      sanitizedProject.tag_ids = sanitizedProject.tag_ids
+        .filter(id => id && typeof id === 'string');
+      
+      console.log(`${isUpdate ? 'Updating' : 'Creating'} project with ${sanitizedProject.images?.length || 0} images`);
+      
+      let response;
+      
       if (isUpdate) {
-        const { error: updateError } = await supabaseClient
-          .from('projects')
-          .update(selectedProject)
-          .eq('id', selectedProject.id)
-
-        if (updateError) throw updateError
+        // Get the project ID for update (TypeScript safety)
+        const projectId = (sanitizedProject as ProjectUpdate).id;
+        
+        // Use the API route for updates instead of direct Supabase client
+        console.log(`Updating project ${projectId}`);
+        response = await fetch(`/api/admin/projects?id=${projectId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sanitizedProject)
+        })
       } else {
-        const { error: insertError } = await supabaseClient
-          .from('projects')
-          .insert(selectedProject)
-
-        if (insertError) throw insertError
+        // Use the API route for creating new projects
+        console.log('Creating new project');
+        response = await fetch('/api/admin/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sanitizedProject)
+        })
       }
+      
+      // Check if the response is HTML instead of JSON (error page)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        console.error('Received HTML response instead of JSON');
+        throw new Error('Server error: The API returned an HTML error page');
+      }
+      
+      if (!response.ok) {
+        // Try to parse error response
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+          throw new Error(`Server error (${response.status}): Could not parse error details`);
+        }
+        
+        const errorMessage = errorData?.error || errorData?.message || 'Unknown server error';
+        const errorDetails = errorData?.details ? `: ${errorData.details}` : '';
+        throw new Error(`${errorMessage}${errorDetails}`);
+      }
+      
+      // Get the success response
+      const data = await response.json();
+      console.log('Save successful:', data);
 
       toast({
         title: "Success",
@@ -283,12 +346,9 @@ export default function AdminPage() {
 
   const handleImageUpload = async (file: File) => {
     try {
-      // First verify authentication
-      const { data: { session }, error: authError } = await supabaseClient.auth.getSession()
-      if (authError || !session) {
-        throw new Error('Authentication required. Please sign in.')
-      }
-
+      // Skip explicit auth check - middleware already protects admin routes
+      // If we got this far, the user must be authenticated
+      
       if (!file) {
         throw new Error('No file selected')
       }
@@ -313,14 +373,9 @@ export default function AdminPage() {
       const fileName = `${timestamp}-${uniqueId}.${fileExt}`
       const filePath = `projects/${fileName}` // Store in projects/ subdirectory
 
-      console.log('Attempting to upload file:', {
-        bucket: 'project-images',
-        path: filePath,
-        size: file.size,
-        type: file.type
-      })
+      console.log('Uploading file to Supabase Storage')
 
-      // First, try to upload to Supabase Storage
+      // Upload to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabaseClient.storage
         .from('project-images')
         .upload(filePath, file, {
@@ -330,19 +385,21 @@ export default function AdminPage() {
         })
 
       if (uploadError) {
-        console.error('Storage upload error details:', {
-          error: uploadError,
-          message: uploadError.message,
-          name: uploadError.name
-        })
+        console.error('Storage upload error details:', uploadError)
+        
+        // Check for specific auth errors
+        if (uploadError.message?.includes('auth') || uploadError.message?.includes('Authentication')) {
+          // Redirect to login if auth failed
+          router.push('/auth/login?returnUrl=/admin')
+          throw new Error('Your session has expired. Please login again.')
+        }
+        
         throw new Error(`Failed to upload image: ${uploadError.message || 'Unknown error'}`)
       }
 
       if (!uploadData?.path) {
         throw new Error('Upload successful but no path returned')
       }
-
-      console.log('File uploaded successfully:', uploadData)
 
       // Get the public URL for the uploaded file
       const { data: urlData } = supabaseClient.storage
@@ -357,7 +414,7 @@ export default function AdminPage() {
         throw new Error('Failed to get public URL')
       }
 
-      // Return the public URL and path for database reference
+      // Return the public URL and path
       return {
         url: urlData.publicUrl,
         path: uploadData.path
@@ -385,7 +442,6 @@ export default function AdminPage() {
       // Create the new image object
       const newImage = {
         url: uploadResult.url,
-        storage_path: uploadResult.path,
         alt_text: file.name.split('.')[0],
         order_index: (selectedProject.images || []).length
       }

@@ -4,8 +4,8 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { type Database } from './database.types'
 
-// Server-side Supabase client (for Server Components)
-export async function createServerComponentClient() {
+// Create a server-side Supabase client (for use in Server Components and Route Handlers)
+export async function createServerSupabaseClient() {
   const cookieStore = cookies()
   
   return createServerClient<Database>(
@@ -17,20 +17,10 @@ export async function createServerComponentClient() {
           return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options })
-          } catch (error) {
-            // Handle edge case where cookies are not available
-            console.error('Error setting cookie:', error)
-          }
+          cookieStore.set(name, value, options)
         },
         remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.delete(name)
-          } catch (error) {
-            // Handle edge case where cookies are not available
-            console.error('Error removing cookie:', error)
-          }
+          cookieStore.set(name, '', { ...options, maxAge: 0 })
         },
       },
     }

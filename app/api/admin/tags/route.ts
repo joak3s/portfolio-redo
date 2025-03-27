@@ -1,9 +1,41 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+
+// Helper function to verify admin authentication
+async function verifyAdmin() {
+  try {
+    // Create a supabase client using our standardized SSR implementation
+    const supabase = await createServerSupabaseClient()
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (error) {
+      console.error('Authentication error:', error)
+      return false
+    }
+    
+    if (!session) {
+      console.error('No active session')
+      return false
+    }
+    
+    // You could add additional role checks here if needed
+    return true
+  } catch (error) {
+    console.error('Authentication verification error:', error)
+    return false
+  }
+}
 
 // List all tags
 export async function GET() {
   try {
+    // Verify the request is from an authenticated admin
+    const isAdmin = await verifyAdmin()
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
     const { data: tags, error } = await supabaseAdmin
       .from('tags')
       .select('*')
@@ -27,6 +59,12 @@ export async function GET() {
 // Create a new tag
 export async function POST(request: Request) {
   try {
+    // Verify the request is from an authenticated admin
+    const isAdmin = await verifyAdmin()
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
     const body = await request.json()
     
     const { data: tag, error } = await supabaseAdmin
@@ -53,6 +91,12 @@ export async function POST(request: Request) {
 // Delete a tag
 export async function DELETE(request: Request) {
   try {
+    // Verify the request is from an authenticated admin
+    const isAdmin = await verifyAdmin()
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     

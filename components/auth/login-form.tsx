@@ -11,9 +11,10 @@ import { Loader2 } from 'lucide-react'
 
 interface LoginFormProps {
   error?: string
+  returnUrl?: string
 }
 
-export default function LoginForm({ error }: LoginFormProps) {
+export default function LoginForm({ error, returnUrl }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(error || null)
 
@@ -24,6 +25,12 @@ export default function LoginForm({ error }: LoginFormProps) {
 
     try {
       const formData = new FormData(e.currentTarget)
+      
+      // Add returnUrl to formData if it exists
+      if (returnUrl) {
+        formData.append('returnUrl', returnUrl)
+      }
+      
       await signIn(formData)
     } catch (err) {
       setFormError('An error occurred during sign in. Please try again.')
