@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { useTheme } from "next-themes"
+import { Inter } from "next/font/google"
 import ParticleBackground from "@/components/playground/particle-background"
 import GradientBackground from "@/components/playground/gradient-background"
 import EffectToggle from "@/components/playground/effect-toggle"
@@ -11,6 +12,12 @@ import StreamingTextSubtle from "../../components/playground/streaming-text-subt
 import { Testimonials } from '../../components/Testimonials'
 import { ProjectCarousel } from '@/components/project-carousel'
 import { Project } from '@/lib/types'
+import { GlowCard } from "@/components/playground/cards/GlowCard"
+import { InteractiveProjectCard } from "@/components/playground/cards/InteractiveProjectCard"
+import { demoProject, demoGlowCards } from "@/lib/playground-data"
+import { AIChat } from "@/components/playground/AIChatPurple"
+
+const inter = Inter({ subsets: ["latin"] })
 
 export default function PlaygroundPage() {
   const [currentEffect, setCurrentEffect] = useState<"particles" | "gradient">("particles")
@@ -58,15 +65,46 @@ export default function PlaygroundPage() {
           transition={{ duration: 0.5 }}
           style={{ maxWidth: '56rem', margin: '0 auto' }}
         >
-          <h1 className="text-4xl font-bold mb-6">Interactive Playground</h1>
+          <h1 className="text-4xl font-bold mb-6">Playground</h1>
           <p className="text-xl text-muted-foreground mb-8">
-            Explore different visual effects and interactions. Toggle between background styles to see how they
-            transform the page.
+            Explore different visual effects and interactions. Test out components and features.
           </p>
+        
+          {/* AI Chat Interface */}
+          <section className="my-16">
 
-          <div className="mb-12">
-            <EffectToggle currentEffect={currentEffect} onChange={(effect) => setCurrentEffect(effect)} />
-          </div>
+            <AIChat />
+          </section>
+
+          {/* Interactive Project Card Section */}
+          <section className="mb-16 bg-background/80 backdrop-blur-sm p-8 rounded-lg border shadow-sm">
+            <h2 className={`text-3xl font-bold mb-8`}>
+              Interactive Project Cards
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <InteractiveProjectCard {...demoProject} />
+              <InteractiveProjectCard {...demoProject} />
+              <InteractiveProjectCard {...demoProject} />
+            </div>
+          </section>
+
+          <Testimonials />
+
+          {/* Glow Cards Section */}
+          <section className="mb-16 bg-background/80 backdrop-blur-sm p-8 rounded-lg border shadow-sm">
+            <h2 className="text-3xl font-bold mb-8">
+              Glowing Cards
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {demoGlowCards.map((card, index) => (
+                <GlowCard
+                  key={index}
+                  title={card.title}
+                  description={card.description}
+                />
+              ))}
+            </div>
+          </section>
 
           {/* Project Carousel Demo */}
           <div className="mb-16 bg-background/80 backdrop-blur-sm p-8 rounded-lg border shadow-sm">
@@ -74,28 +112,8 @@ export default function PlaygroundPage() {
             <ProjectCarousel projects={projects} />
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
-            <div className="bg-background/80 backdrop-blur-sm p-6 rounded-lg border shadow-sm">
-              <h2 className="text-2xl font-semibold mb-4">About This Page</h2>
-              <p className="mb-4">
-                This playground demonstrates dynamic background effects that adapt to your theme preference.
-              </p>
-              <p>
-                The effects are built using React Particles and Framer Motion, showcasing how interactive elements can
-                enhance the user experience while maintaining accessibility.
-              </p>
-            </div>
-
-            <div className="bg-background/80 backdrop-blur-sm p-6 rounded-lg border shadow-sm">
-              <h2 className="text-2xl font-semibold mb-4">How It Works</h2>
-              <p className="mb-4">
-                The particle effect creates an interactive canvas of moving dots that respond to your cursor movements.
-              </p>
-              <p>
-                The gradient effect uses Framer Motion to animate smooth color transitions that complement both light
-                and dark themes.
-              </p>
-            </div>
+          <div className="mb-12">
+            <EffectToggle currentEffect={currentEffect} onChange={(effect) => setCurrentEffect(effect)} />
           </div>
 
           <div className="mt-16 bg-background/80 backdrop-blur-sm p-8 rounded-lg border shadow-sm">
@@ -114,7 +132,6 @@ export default function PlaygroundPage() {
         </motion.div>
       </div>
 
-      <Testimonials />
     </div>
   )
 }
