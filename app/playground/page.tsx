@@ -15,7 +15,7 @@ import { Project } from '@/lib/types'
 import { GlowCard } from "@/components/playground/cards/GlowCard"
 import { InteractiveProjectCard } from "@/components/playground/cards/InteractiveProjectCard"
 import { demoProject, demoGlowCards } from "@/lib/playground-data"
-import { AIChat } from "@/components/playground/AIChatPurple"
+import { AIChat } from "@/components/playground/ai-chat-demo"
 
 const inter = Inter({ subsets: ["latin"] })
 
