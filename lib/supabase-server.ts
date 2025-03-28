@@ -2,7 +2,7 @@
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { type Database } from './database.types'
+import { type Database } from './types/supabase'
 
 // Create a server-side Supabase client (for use in Server Components and Route Handlers)
 export async function createServerSupabaseClient() {

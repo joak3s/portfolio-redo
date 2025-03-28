@@ -5,10 +5,10 @@ import { motion } from "framer-motion"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react"
 import Link from "next/link"
 import type { Project, Tool } from "@/lib/types"
-import { ProjectImageGallery } from "@/components/project-image-gallery"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { supabaseClient } from "@/lib/supabase-browser"
 
@@ -20,6 +20,7 @@ export function ProjectContent({ slug }: ProjectContentProps) {
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
 
   useEffect(() => {
     async function fetchProject() {
@@ -62,6 +63,29 @@ export function ProjectContent({ slug }: ProjectContentProps) {
     fetchProject()
   }, [slug, supabaseClient])
 
+  // Image navigation handlers
+  const handlePrevious = () => {
+    if (selectedImageIndex === null || !project?.project_images) return
+    const imageCount = project.project_images.length
+    setSelectedImageIndex(
+      selectedImageIndex === 0 ? imageCount - 1 : selectedImageIndex - 1
+    )
+  }
+
+  const handleNext = () => {
+    if (selectedImageIndex === null || !project?.project_images) return
+    const imageCount = project.project_images.length
+    setSelectedImageIndex(
+      selectedImageIndex === imageCount - 1 ? 0 : selectedImageIndex + 1
+    )
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') handlePrevious()
+    if (e.key === 'ArrowRight') handleNext()
+    if (e.key === 'Escape') setSelectedImageIndex(null)
+  }
+
   if (isLoading) {
     return (
       <div className="container py-8 md:py-12">
@@ -95,6 +119,16 @@ export function ProjectContent({ slug }: ProjectContentProps) {
       </div>
     )
   }
+
+  // Prepare images for display
+  const projectImages = project.project_images?.map(img => ({
+    url: img.url,
+    alt: img.alt_text || project.title
+  })) || []
+  
+  // Split images into two groups: first three and the rest
+  const firstThreeImages = projectImages.slice(0, 3)
+  const remainingImages = projectImages.slice(3)
 
   return (
     <div className="container py-8 md:py-12">
@@ -133,14 +167,25 @@ export function ProjectContent({ slug }: ProjectContentProps) {
             )}
           </div>
 
-          {/* Project Images */}
-          <ProjectImageGallery 
-            images={project.project_images?.map(img => ({
-              url: img.url,
-              alt: img.alt_text || project.title
-            })) || []}
-            className="mb-8"
-          />
+          {/* First Three Images - Displayed in three columns */}
+          {firstThreeImages.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+              {firstThreeImages.map((image, index) => (
+                <div
+                  key={`featured-image-${index}`}
+                  className="relative aspect-[3/2] overflow-hidden rounded-lg cursor-pointer group"
+                  onClick={() => setSelectedImageIndex(index)}
+                >
+                  <Image
+                    src={image.url}
+                    alt={image.alt}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Project Content */}
           <div className="grid gap-8 md:grid-cols-2">
@@ -172,8 +217,84 @@ export function ProjectContent({ slug }: ProjectContentProps) {
               </div>
             )}
           </div>
+
+          {/* Remaining Images */}
+          {remainingImages.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">Gallery</h2>
+              <div className="grid grid-cols-1 gap-8">
+                {remainingImages.map((image, index) => (
+                  <div
+                    key={`gallery-image-${index}`}
+                    className="relative aspect-[3/2] overflow-hidden rounded-lg cursor-pointer group"
+                    onClick={() => setSelectedImageIndex(index + 3)} // +3 to account for the first three images
+                  >
+                    <Image
+                      src={image.url}
+                      alt={image.alt}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
+
+      {/* Image Lightbox Dialog */}
+      <Dialog
+        open={selectedImageIndex !== null}
+        onOpenChange={(open) => !open && setSelectedImageIndex(null)}
+      >
+        <DialogContent
+          className="max-w-5xl p-0 bg-transparent border-none"
+          onKeyDown={handleKeyDown}
+        >
+          {selectedImageIndex !== null && projectImages[selectedImageIndex] && (
+            <div className="relative">
+              <div className="relative aspect-[16/9] overflow-hidden rounded-lg">
+                <Image
+                  src={projectImages[selectedImageIndex].url}
+                  alt={projectImages[selectedImageIndex].alt}
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 text-white bg-black/20 hover:bg-black/40"
+                onClick={() => setSelectedImageIndex(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+
+              <div className="absolute left-2 right-2 top-1/2 -translate-y-1/2 flex justify-between">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white bg-black/20 hover:bg-black/40"
+                  onClick={handlePrevious}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white bg-black/20 hover:bg-black/40"
+                  onClick={handleNext}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

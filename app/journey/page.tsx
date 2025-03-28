@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import TimelineMilestone from "@/components/journey/timeline-milestone"
-import { milestones } from "@/data/journey-milestones"
+import { useJourneyMilestones } from "@/hooks/use-journey"
 
 export default function JourneyPage() {
+  const { milestones, isLoading, error } = useJourneyMilestones()
   const [activeIndex, setActiveIndex] = useState(0)
   const [direction, setDirection] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -35,7 +36,7 @@ export default function JourneyPage() {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [activeIndex])
+  }, [activeIndex, milestones.length])
 
   const handleNext = () => {
     if (activeIndex < milestones.length - 1) {
@@ -54,6 +55,44 @@ export default function JourneyPage() {
   const handleDotClick = (index: number) => {
     setDirection(index > activeIndex ? 1 : -1)
     setActiveIndex(index)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-muted-foreground">Loading journey milestones...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] bg-background">
+        <div className="container py-12">
+          <h1 className="text-4xl font-bold mb-4">My Journey</h1>
+          <p className="text-xl text-muted-foreground mb-4">
+            Error loading milestones. Please try again later.
+          </p>
+          <p className="text-sm text-red-500">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (milestones.length === 0) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] bg-background">
+        <div className="container py-12">
+          <h1 className="text-4xl font-bold mb-4">My Journey</h1>
+          <p className="text-xl text-muted-foreground mb-4">
+            No milestones found. Check back later!
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

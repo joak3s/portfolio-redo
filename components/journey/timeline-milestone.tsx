@@ -2,9 +2,9 @@
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Briefcase, Code, Layout, MessageSquare, ImageIcon } from "lucide-react"
+import { Briefcase, Code, Layout, MessageSquare, ImageIcon, Hammer } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Milestone } from "@/data/journey-milestones"
+import type { Milestone } from "@/lib/types/journey"
 
 interface TimelineMilestoneProps {
   milestone: Milestone
@@ -23,6 +23,8 @@ export default function TimelineMilestone({ milestone }: TimelineMilestoneProps)
         return <MessageSquare className="h-6 w-6" />
       case "image":
         return <ImageIcon className="h-6 w-6" />
+      case "tool":
+        return <Hammer className="h-6 w-6" />
       default:
         return <Briefcase className="h-6 w-6" />
     }
