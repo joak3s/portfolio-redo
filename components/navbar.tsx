@@ -32,6 +32,19 @@ const letterVariants: Variants = {
   }),
 }
 
+// Client-side only wrapper component
+function ClientOnly({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
+  if (!mounted) return null
+  
+  return <>{children}</>
+}
+
 export default function Navbar() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
@@ -42,8 +55,18 @@ export default function Navbar() {
   // Prevent hydration mismatch by only rendering after mount
   useEffect(() => {
     setMounted(true)
-    setIsLogoVisible(true)
   }, [])
+
+  // Set logo visibility after component mounts to trigger animation
+  useEffect(() => {
+    if (mounted) {
+      const timer = setTimeout(() => {
+        setIsLogoVisible(true)
+      }, 100) // Small delay for reliability
+      
+      return () => clearTimeout(timer)
+    }
+  }, [mounted])
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -70,31 +93,33 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Link href="/" className="flex items-baseline text-2xl font-bold">
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: isLogoVisible ? 1 : 0 }}
-            transition={{ 
-              duration: 0.6,
-              ease: [0.22, 1, 0.36, 1]
-            }}
-            className="text-primary"
-          >
-            J
-          </motion.span>
-          <div className="flex">
-            {letters.map((letter, index) => (
-              <motion.span
-                key={index}
-                custom={index}
-                variants={letterVariants}
-                initial="hidden"
-                animate={isLogoVisible ? "visible" : "hidden"}
-                className="inline-block text-muted-foreground"
-              >
-                {letter}
-              </motion.span>
-            ))}
-          </div>
+          <ClientOnly>
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isLogoVisible ? 1 : 0 }}
+              transition={{ 
+                duration: 0.6,
+                ease: [0.22, 1, 0.36, 1]
+              }}
+              className="text-primary"
+            >
+              J
+            </motion.span>
+            <div className="flex">
+              {letters.map((letter, index) => (
+                <motion.span
+                  key={index}
+                  custom={index}
+                  variants={letterVariants}
+                  initial="hidden"
+                  animate={isLogoVisible ? "visible" : "hidden"}
+                  className="inline-block text-muted-foreground"
+                >
+                  {letter}
+                </motion.span>
+              ))}
+            </div>
+          </ClientOnly>
         </Link>
 
         {/* Desktop Navigation */}
@@ -109,11 +134,13 @@ export default function Navbar() {
               )}
             >
               {pathname === item.path && mounted && (
-                <motion.span
-                  layoutId="navbar-indicator"
-                  className="absolute inset-0 z-[-1] rounded-md bg-accent/40"
-                  transition={{ type: "spring", duration: 0.6 }}
-                />
+                <ClientOnly>
+                  <motion.span
+                    layoutId="navbar-indicator"
+                    className="absolute inset-0 z-[-1] rounded-md bg-accent/40"
+                    transition={{ type: "spring", duration: 0.6 }}
+                  />
+                </ClientOnly>
               )}
               {item.name}
             </Link>

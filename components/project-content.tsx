@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react"
 import Link from "next/link"
 import type { Project, Tool } from "@/lib/types"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogPortal, DialogOverlay } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { supabaseClient } from "@/lib/supabase-browser"
 
@@ -180,6 +180,7 @@ export function ProjectContent({ slug }: ProjectContentProps) {
                     src={image.url}
                     alt={image.alt}
                     fill
+                    priority={index === 0}
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 </div>
@@ -248,52 +249,55 @@ export function ProjectContent({ slug }: ProjectContentProps) {
         open={selectedImageIndex !== null}
         onOpenChange={(open) => !open && setSelectedImageIndex(null)}
       >
-        <DialogContent
-          className="max-w-5xl p-0 bg-transparent border-none"
-          onKeyDown={handleKeyDown}
-        >
-          {selectedImageIndex !== null && projectImages[selectedImageIndex] && (
-            <div className="relative">
-              <div className="relative aspect-[16/9] overflow-hidden rounded-lg">
-                <Image
-                  src={projectImages[selectedImageIndex].url}
-                  alt={projectImages[selectedImageIndex].alt}
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
+        <DialogPortal>
+          <DialogOverlay />
+          <div 
+            className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-5xl translate-x-[-50%] translate-y-[-50%] border-none bg-transparent p-0 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+            onKeyDown={handleKeyDown}
+          >
+            {selectedImageIndex !== null && projectImages[selectedImageIndex] && (
+              <div className="relative">
+                <div className="relative aspect-[16/9] overflow-hidden rounded-lg">
+                  <Image
+                    src={projectImages[selectedImageIndex].url}
+                    alt={projectImages[selectedImageIndex].alt}
+                    fill
+                    className="object-contain"
+                    priority
+                  />
+                </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 text-white bg-black/20 hover:bg-black/40"
-                onClick={() => setSelectedImageIndex(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-
-              <div className="absolute left-2 right-2 top-1/2 -translate-y-1/2 flex justify-between">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white bg-black/20 hover:bg-black/40"
-                  onClick={handlePrevious}
+                  className="absolute top-2 right-2 text-white bg-black/20 hover:bg-black/40"
+                  onClick={() => setSelectedImageIndex(null)}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-white bg-black/20 hover:bg-black/40"
-                  onClick={handleNext}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+
+                <div className="absolute left-2 right-2 top-1/2 -translate-y-1/2 flex justify-between">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white bg-black/20 hover:bg-black/40"
+                    onClick={handlePrevious}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white bg-black/20 hover:bg-black/40"
+                    onClick={handleNext}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
+            )}
+          </div>
+        </DialogPortal>
       </Dialog>
     </div>
   )

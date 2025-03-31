@@ -1,13 +1,13 @@
-Portfolio Website
+# Portfolio Website
 
-A modern, high-performance portfolio website built with Next.js 15 and React 19, leveraging Server Components and the App Router for optimal performance and SEO. This portfolio showcases my work and journey as a developer with a focus on modern web technologies and best practices.
+A modern, high-performance portfolio website built with Next.js and Supabase leveraging Server Components and the App Router for optimal performance and SEO. This portfolio showcases my work and journey as a developer with a focus on modern web technologies and best practices.
 
 ## Tech Stack
 
-- **Framework:** Next.js 15 with App Router
-- **Runtime:** React 19 with Server Components
+- **Framework:** Next.js 14.2.x with App Router
+- **Runtime:** React 18 with Server Components
 - **Language:** TypeScript
-- **Database & Auth:** Supabase
+- **Database & Auth:** Supabase with SSR client
 - **Styling:** 
   - Tailwind CSS
   - CSS Modules
@@ -15,14 +15,18 @@ A modern, high-performance portfolio website built with Next.js 15 and React 19,
 - **UI Components:** 
   - Radix UI (Accessible primitives)
   - Shadcn UI (Beautiful, accessible components)
-- **Animations:** Framer Motion v11
+- **Animations:** Framer Motion 11
 - **Form Handling:** React Hook Form with Zod validation
 - **State Management:** React Server Components + Client Hooks
-- **Date Handling:** date-fns
+- **Date Handling:** date-fns 3.6
 - **Deployment:** Vercel
 - **Image Optimization:** Sharp
 - **Security:** Next.js Middleware
-- **Environment:** Configured with multiple environments (.env.local, .env.production)
+- **Interactive Elements:**
+  - Embla Carousel
+  - Drag and Drop with react-dropzone
+  - Toast notifications with Sonner
+- **Environment:** Configured with multiple environments (.env.local, .env)
 
 ## Features
 
@@ -38,49 +42,67 @@ A modern, high-performance portfolio website built with Next.js 15 and React 19,
   - Optimized font loading
   - Image optimization
   - Route prefetching
-- 📝 Blog/Journey section
-- 🎮 Interactive components
+- 📝 Journey/Timeline section with milestone tracking
+- 🎮 Interactive components and playground
 - 📬 Type-safe forms with React Hook Form + Zod
 - 🔍 SEO optimized with Next.js metadata
-- 🔄 Smooth page transitions
-- 📊 Analytics ready
+- 🔄 Smooth page transitions with Framer Motion
+- 📊 Admin dashboard for content management
+- 🖼️ File upload capabilities with image previews
+- 📱 Responsive image galleries and carousels
+- 💬 AI-powered chat interface
 
 ## Project Structure
 
 ```
-├── app/                    # Next.js 15 App Router
-│   ├── (routes)/          # Route groups
-│   ├── api/               # API routes
-│   ├── layout.tsx         # Root layout
-│   └── page.tsx           # Home page
-├── components/            # Reusable components
-│   ├── ui/               # Shadcn UI components
-│   └── shared/           # Shared components
-├── lib/                   # Utility functions
-│   ├── supabase/         # Supabase client
-│   └── utils/            # Helper functions
-├── styles/               # Global styles
-├── hooks/                # Custom React hooks
-├── public/               # Static assets
-├── supabase/             # Supabase configuration
-├── scripts/              # Build/deployment scripts
-└── middleware.ts         # Next.js middleware
+├── app/                    # Next.js App Router
+│   ├── page.tsx            # Home page
+│   ├── layout.tsx          # Root layout
+│   ├── journey/            # Journey/timeline section
+│   ├── work/               # Portfolio work section
+│   ├── contact/            # Contact section  
+│   ├── featured/           # Featured projects
+│   ├── playground/         # Interactive demos
+│   ├── admin/              # Admin dashboard
+│   └── api/                # API routes
+├── components/             # Reusable components
+│   ├── ui/                 # Shadcn UI components
+│   ├── auth/               # Authentication components
+│   ├── journey/            # Journey components
+│   └── playground/         # Interactive components
+├── lib/                    # Utility functions
+│   └── supabase/           # Supabase client
+├── styles/                 # Global styles
+├── hooks/                  # Custom React hooks
+├── public/                 # Static assets
+├── supabase/               # Supabase configuration
+│   └── migrations/         # Database migrations
+├── scripts/                # Build/deployment scripts
+└── middleware.ts           # Next.js middleware
 ```
 
 ### Environment Setup
 
-The project uses multiple environment files for different contexts:
-- `.env.local` - Local development variables
-- `.env.production` - Production environment variables
-- `.env.example` - Template for required environment variables
+The project uses environment files for different contexts:
+- `.env.local` - Local development variables (not committed to git)
+- `.env` - Base environment variables
 
 ### Data Management
 
 Data is managed through Supabase, providing:
 - Real-time data synchronization
-- Secure authentication
+- Secure authentication with SSR support
 - Row-level security
 - Type-safe database operations
+- Image and file storage
+
+### SQL Migrations
+
+The project includes SQL migration files for:
+- Journey/milestone data structure and images
+- Project showcase structure
+- User authentication and permissions
+- Media storage configuration
 
 ### Deployment
 
@@ -90,19 +112,5 @@ The project is optimized for deployment on Vercel with:
 - Asset optimization
 - Analytics integration
 - Environment variable management
-
-# Supabase CLI (v1)
-
-[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
-](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
-
-[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
-
-This repository contains all the functionality for Supabase CLI.
-
-- [x] Running Supabase locally
-- [x] Managing database migrations
-- [x] Creating and deploying Supabase Functions
-- [x] Generating types directly from your database schema
-- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
+- Custom deployment scripts
 
