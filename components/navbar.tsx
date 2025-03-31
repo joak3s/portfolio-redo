@@ -5,9 +5,10 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "./theme-toggle"
-import { motion, AnimatePresence, Variants } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import StreamingTextLogo from "./streaming-text-joakes"
 
 const navItems = [
   { name: "Home", path: "/" },
@@ -17,20 +18,6 @@ const navItems = [
   { name: "Contact", path: "/contact" },
   { name: "Playground", path: "/playground" },
 ]
-
-const letterVariants: Variants = {
-  hidden: {
-    opacity: 0,
-  },
-  visible: (custom: number) => ({
-    opacity: 1,
-    transition: {
-      duration: 0.8,
-      delay: custom * 0.15 + 0.6,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  }),
-}
 
 // Client-side only wrapper component
 function ClientOnly({ children }: { children: React.ReactNode }) {
@@ -49,24 +36,11 @@ export default function Navbar() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [isLogoVisible, setIsLogoVisible] = useState(false)
-  const letters = 'OAKES'.split('')
 
   // Prevent hydration mismatch by only rendering after mount
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  // Set logo visibility after component mounts to trigger animation
-  useEffect(() => {
-    if (mounted) {
-      const timer = setTimeout(() => {
-        setIsLogoVisible(true)
-      }, 100) // Small delay for reliability
-      
-      return () => clearTimeout(timer)
-    }
-  }, [mounted])
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -92,32 +66,10 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-baseline text-2xl font-bold">
+        <Link href="/" className="flex items-center">
           <ClientOnly>
-            <motion.span
-              initial={{ opacity: 0 }}
-              animate={{ opacity: isLogoVisible ? 1 : 0 }}
-              transition={{ 
-                duration: 0.6,
-                ease: [0.22, 1, 0.36, 1]
-              }}
-              className="text-primary"
-            >
-              J
-            </motion.span>
-            <div className="flex">
-              {letters.map((letter, index) => (
-                <motion.span
-                  key={index}
-                  custom={index}
-                  variants={letterVariants}
-                  initial="hidden"
-                  animate={isLogoVisible ? "visible" : "hidden"}
-                  className="inline-block text-muted-foreground"
-                >
-                  {letter}
-                </motion.span>
-              ))}
+            <div className="flex items-center">
+              <StreamingTextLogo textSize="text-2xl" />
             </div>
           </ClientOnly>
         </Link>

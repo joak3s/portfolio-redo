@@ -47,7 +47,7 @@ export default function Home() {
               transition={{ duration: 0.5 }}
               className="text-center max-w-4xl mx-auto mb-8"
             >
-              <h1 className="text-4xl md:text-6xl font-bold mb-4">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
                 I&apos;m Jordan Oakes, a<br />
                 UX Designer and AI Specialist
               </h1>

@@ -17,7 +17,15 @@ const letterVariants: Variants = {
   }),
 }
 
-export default function StreamingTextSubtle() {
+interface StreamingTextSubtleProps {
+  className?: string;
+  textSize?: string;
+}
+
+export default function StreamingTextSubtle({ 
+  className = "",
+  textSize = "text-4xl md:text-5xl lg:text-6xl" 
+}: StreamingTextSubtleProps) {
   const [isVisible, setIsVisible] = useState(false)
   const letters = 'OAKES'.split('')
 
@@ -26,8 +34,8 @@ export default function StreamingTextSubtle() {
   }, [])
 
   return (
-    <div className="flex items-center justify-center py-8">
-      <div className="flex items-baseline text-4xl md:text-5xl lg:text-6xl font-extrabold text-muted-foreground">
+    <div className={`flex items-center ${className}`}>
+      <div className={`flex items-baseline ${textSize} font-[750] tracking-0.02 dark:text-muted-foreground text-foreground/70`}>
         <motion.span
           initial={{ opacity: 0 }}
           animate={{ opacity: isVisible ? 1 : 0 }}
@@ -35,7 +43,7 @@ export default function StreamingTextSubtle() {
             duration: 0.6,
             ease: [0.22, 1, 0.36, 1]
           }}
-          className="text-primary/80"
+          className="dark:text-primary/90 text-primary/90"
         >
           J
         </motion.span>

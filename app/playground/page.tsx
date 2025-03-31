@@ -8,7 +8,7 @@ import ParticleBackground from "@/components/playground/particle-background"
 import GradientBackground from "@/components/playground/gradient-background"
 import EffectToggle from "@/components/playground/effect-toggle"
 import StreamingText from "../../components/playground/streaming-text"
-import StreamingTextSubtle from "../../components/playground/streaming-text-subtle"
+import StreamingTextSubtle from "../../components/streaming-text-joakes"
 import { Testimonials } from '../../components/Testimonials'
 import { ProjectCarousel } from '@/components/project-carousel'
 import { Project } from '@/lib/types'

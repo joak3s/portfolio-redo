@@ -10,13 +10,15 @@ import { supabaseClient } from "@/lib/supabase-browser"
 import type { Project } from "@/lib/types"
 
 export default function FeaturedPage() {
-  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([])
+  const [topFeaturedProjects, setTopFeaturedProjects] = useState<Project[]>([])
+  const [remainingProjects, setRemainingProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchFeaturedProjects() {
+    async function fetchProjects() {
       try {
-        const { data, error } = await supabaseClient
+        // First fetch all published projects
+        const { data: allProjects, error } = await supabaseClient
           .from('projects')
           .select(`
             *,
@@ -26,28 +28,35 @@ export default function FeaturedPage() {
             )
           `)
           .eq('status', 'published')
-          .not('featured', 'is', null)
-          .gt('featured', 0)
-          .order('featured', { ascending: true })
-          .limit(6)
+          .order('featured', { ascending: true, nullsFirst: false })
 
         if (error) throw error
 
-        const projects = data.map(project => ({
+        const formattedProjects = allProjects.map(project => ({
           ...project,
           status: (project.status as "published" | "draft") || "draft",
           tools: project.tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
         }))
 
-        setFeaturedProjects(projects)
+        // Split into top 5 featured and remaining projects
+        const featured = formattedProjects
+          .filter(p => p.featured !== null && p.featured > 0)
+          .sort((a, b) => (a.featured || 999) - (b.featured || 999))
+          .slice(0, 5)
+        
+        const remaining = formattedProjects
+          .filter(p => !featured.some(f => f.id === p.id))
+        
+        setTopFeaturedProjects(featured)
+        setRemainingProjects(remaining)
       } catch (error) {
-        console.error("Error fetching featured projects:", error)
+        console.error("Error fetching projects:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchFeaturedProjects()
+    fetchProjects()
   }, [])
 
   if (loading) {
@@ -69,15 +78,14 @@ export default function FeaturedPage() {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-          {featuredProjects.map((project, index) => {
-            // Determine grid span based on index for 3-row asymmetrical layout
+          {topFeaturedProjects.map((project, index) => {
+            // Determine grid span based on index for 2-row asymmetrical layout
             const spanClasses = [
               "md:col-span-6", // Row 1: First project (half width)
               "md:col-span-6", // Row 1: Second project (half width)
               "md:col-span-4", // Row 2: Third project (one-third width)
               "md:col-span-4", // Row 2: Fourth project (one-third width)
               "md:col-span-4", // Row 2: Fifth project (one-third width)
-              "md:col-span-12", // Row 3: Sixth project (full width)
             ][index]
 
             // Get the first project image or placeholder
@@ -92,7 +100,7 @@ export default function FeaturedPage() {
                 style={{ animationDelay: `${index * 0.1 + 0.2}s`, animationFillMode: 'forwards' }}
               >
                 <Link href={`/work/${project.slug}`} className="block h-full">
-                  <div className={`relative overflow-hidden rounded-lg ${index === 5 ? 'aspect-[21/9]' : 'aspect-video'} mb-4 group-hover:shadow-xl transition-all duration-300`}>
+                  <div className="relative overflow-hidden rounded-lg aspect-video mb-4 group-hover:shadow-xl transition-all duration-300">
                     <Image
                       src={projectImage}
                       alt={project.title}
@@ -103,7 +111,7 @@ export default function FeaturedPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
 
-                  <h2 className={`${index === 5 ? 'text-3xl' : 'text-2xl'} font-bold mb-2 group-hover:text-primary transition-colors duration-300`}>
+                  <h2 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors duration-300">
                     {project.title}
                   </h2>
 
@@ -132,15 +140,19 @@ export default function FeaturedPage() {
           })}
         </div>
 
-        <div className="flex items-center space-x-4 mb-8 my-16">
-          <div className="h-px flex-1 bg-border"></div>
-          <h2 className="text-2xl font-semibold">More Projects</h2>
-          <div className="h-px flex-1 bg-border"></div>
-        </div>
+        {remainingProjects.length > 0 && (
+          <>
+            <div className="flex items-center space-x-4 mb-8 my-16">
+              <div className="h-px flex-1 bg-border"></div>
+              <h2 className="text-2xl font-semibold">More Projects</h2>
+              <div className="h-px flex-1 bg-border"></div>
+            </div>
 
-        <div className="mb-16">
-          <ProjectCarousel projects={featuredProjects} />
-        </div>
+            <div className="mb-16">
+              <ProjectCarousel projects={remainingProjects} />
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
