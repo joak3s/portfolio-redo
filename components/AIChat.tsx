@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, BrainCog, Brain, PenTool, Zap, MessageCircleCode, MessageCircleDashed } from 'lucide-react';
+import { Send, BrainCog, Brain, PenTool, Zap, MessageCircleCode, MessageCircleDashed } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -19,9 +19,24 @@ interface QuickPrompt {
 
 interface AISimpleChatProps {
   className?: string;
+  onContextUpdate?: (context: any[], relevantProject: any) => void;
 }
 
-export function AISimpleChat({ className }: AISimpleChatProps) {
+// Sample projects - in production, fetch this from Supabase
+const SAMPLE_PROJECTS = [
+  "Modern Day Sniper",
+  "Swyvvl",
+  "Portfolio Website",
+  "AI Chat Interface",
+  "Precision Rifle Training",
+  "UX Research Platform",
+  "Design System",
+  "Interactive Dashboard",
+  "E-commerce Redesign",
+  "Mobile App Experience"
+];
+
+export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,6 +45,8 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
   const [position, setPosition] = useState({ x: 50, y: 50 });
   const [glowPosition, setGlowPosition] = useState({ x: 50, y: 50 });
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
+  const [recommendedProjects, setRecommendedProjects] = useState<string[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const icons = [
     { Icon: Brain, key: 'brain' },
@@ -49,25 +66,52 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
     return () => clearInterval(iconInterval);
   }, [icons.length]);
 
-  // These would be populated based on RAG context
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Get a random project that hasn't been recommended yet
+  const getRandomProject = useCallback(() => {
+    const availableProjects = SAMPLE_PROJECTS.filter(
+      project => !recommendedProjects.includes(project)
+    );
+    
+    // If all projects have been recommended, reset the list
+    if (availableProjects.length === 0) {
+      setRecommendedProjects([]);
+      return SAMPLE_PROJECTS[Math.floor(Math.random() * SAMPLE_PROJECTS.length)];
+    }
+    
+    const randomProject = availableProjects[Math.floor(Math.random() * availableProjects.length)];
+    setRecommendedProjects(prev => [...prev, randomProject]);
+    return randomProject;
+  }, [recommendedProjects]);
+
+  // Updated quick prompts aligned with general_info categories
   const quickPrompts: QuickPrompt[] = [
     { 
-      text: 'Tell me about your work',
-      action: () => handleQuickPrompt('Can you tell me about your professional experience?')
+      text: 'Design approach',
+      action: () => handleQuickPrompt('What is Jordan\'s approach to design and UX?')
     },
     { 
-      text: 'What tools do you use?',
-      action: () => handleQuickPrompt('What technologies and frameworks do you work with?')
+      text: 'Technical skills',
+      action: () => handleQuickPrompt('What technical skills and technologies does Jordan have expertise in?')
     },
     { 
-      text: 'Recent projects',
-      action: () => handleQuickPrompt('What are some recent projects you have worked on?')
+      text: 'Work on a project',
+      action: () => handleQuickPrompt(`Tell me about Jordan's work on ${getRandomProject()}`)
     },
     { 
-      text: 'Contact info',
-      action: () => handleQuickPrompt('How can I get in touch with you?')
+      text: 'Background',
+      action: () => handleQuickPrompt('What is Jordan\'s professional background and experience?')
     },
   ];
+
+  const handleRandomPrompt = () => {
+    const randomPrompt = quickPrompts[Math.floor(Math.random() * quickPrompts.length)];
+    randomPrompt.action();
+  };
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -95,27 +139,44 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
 
   const handleQuickPrompt = (promptText: string) => {
     setMessage(promptText);
+    // Focus the textarea after setting the prompt
+    const textarea = document.querySelector('textarea');
+    if (textarea) textarea.focus();
   };
 
-  // This would integrate with your RAG system
+  // Updated to use the actual RAG API
   const processUserQuery = async (query: string) => {
     // Add user message
     setMessages(prev => [...prev, { role: 'user', content: query }]);
     
     setIsLoading(true);
     try {
-      // In the future, this would call your backend API that implements RAG
-      // For now, simulate a response after a short delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the existing /api/chat endpoint
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: query }),
+      });
       
-      // Simulated response - would be replaced with actual RAG response
+      if (!res.ok) {
+        throw new Error(`Error: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      
+      // Update the messages state with the response
       setMessages(prev => [
         ...prev, 
         { 
           role: 'assistant', 
-          content: "This is a simulated response. When implemented, I'll use RAG to provide contextually relevant information about Jordan's portfolio and experience." 
+          content: data.response 
         }
       ]);
+      
+      // If parent component provided a context update handler, pass the context data
+      if (onContextUpdate && data.context) {
+        onContextUpdate(data.context, data.relevant_project);
+      }
     } catch (error) {
       console.error('Error processing query:', error);
       setMessages(prev => [
@@ -136,6 +197,16 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
     
     processUserQuery(message);
     setMessage('');
+  };
+
+  // Handle keydown events - Enter to submit, Shift+Enter for new line
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (message.trim() && !isLoading) {
+        handleSubmit(e);
+      }
+    }
   };
 
   return (
@@ -191,9 +262,13 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              {/* Combined Icon at the top */}
+              {/* Clickable Icon at the top for random prompts */}
               <div className="flex justify-center mb-6">
-                <div className="relative w-16 h-16 border-2 dark:border-white/10 border-black/20 rounded-xl">
+                <button 
+                  onClick={handleRandomPrompt}
+                  className="relative w-16 h-16 border-2 dark:border-white/10 border-black/20 rounded-xl transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-blue-400"
+                  aria-label="Generate random prompt"
+                >
                   <div 
                     className="absolute inset-0 rounded-xl animate-pulse duration-8000"
                     style={{
@@ -219,7 +294,7 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
                       )}
                     </AnimatePresence>
                   </div>
-                </div>
+                </button>
               </div>
 
               {/* Quick Prompts */}
@@ -239,7 +314,7 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
           )}
         </AnimatePresence>
 
-        {/* Message list */}
+        {/* Message list with auto-scroll */}
         <div className="mb-4 space-y-4 max-h-[300px] overflow-y-auto">
           {messages.map((msg, index) => (
             <div 
@@ -252,12 +327,29 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
               )}
             >
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white shadow-lg">
-                  <Bot className="w-4 h-4" />
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white shadow-sm">
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    className="text-white"
+                  >
+                    <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12a10 10 0 0 1 10-10z" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
                 </div>
               )}
               <div className="flex-1">
-                <p className="text-sm dark:text-white text-neutral-900">{msg.content}</p>
+                {msg.role === 'assistant' ? (
+                  <div className="text-sm dark:text-white text-neutral-900" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                ) : (
+                  <p className="text-sm dark:text-white text-neutral-900">{msg.content}</p>
+                )}
               </div>
             </div>
           ))}
@@ -270,72 +362,34 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
               exit={{ opacity: 0 }}
               className="flex items-start gap-3 p-3 rounded-xl dark:bg-white/5 bg-black/5 backdrop-blur-md"
             >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white shadow-lg">
-                <Bot className="w-4 h-4" />
-              </div>
-              <div className="flex-1 h-8 flex items-center">
+              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
                 <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  viewBox="0 0 200 40" 
-                  width="80"
-                  height="20"
-                  className="dark:text-gray-400 text-gray-800"
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  className="text-white"
                 >
-                  <circle 
-                    className="fill-current stroke-current" 
-                    strokeWidth="0" 
-                    r="6" 
-                    cx="20" 
-                    cy="20"
-                  >
-                    <animate 
-                      attributeName="opacity" 
-                      calcMode="spline" 
-                      dur="2" 
-                      values="1;0;1;" 
-                      keySplines=".5 0 .5 1;.5 0 .5 1" 
-                      repeatCount="indefinite" 
-                      begin="-.4"
-                    />
-                  </circle>
-                  <circle 
-                    className="fill-current stroke-current" 
-                    strokeWidth="0" 
-                    r="6" 
-                    cx="60" 
-                    cy="20"
-                  >
-                    <animate 
-                      attributeName="opacity" 
-                      calcMode="spline" 
-                      dur="2" 
-                      values="1;0;1;" 
-                      keySplines=".5 0 .5 1;.5 0 .5 1" 
-                      repeatCount="indefinite" 
-                      begin="-.2"
-                    />
-                  </circle>
-                  <circle 
-                    className="fill-current stroke-current" 
-                    strokeWidth="0" 
-                    r="6" 
-                    cx="100" 
-                    cy="20"
-                  >
-                    <animate 
-                      attributeName="opacity" 
-                      calcMode="spline" 
-                      dur="2" 
-                      values="1;0;1;" 
-                      keySplines=".5 0 .5 1;.5 0 .5 1" 
-                      repeatCount="indefinite" 
-                      begin="0"
-                    />
-                  </circle>
+                  <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12a10 10 0 0 1 10-10z" />
+                  <path d="M12 6v6l4 2" />
                 </svg>
+              </div>
+              <div className="flex-1 h-7 flex items-center">
+                <div className="flex space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
               </div>
             </motion.div>
           )}
+          
+          {/* Hidden div for auto-scrolling */}
+          <div ref={messagesEndRef} />
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -344,9 +398,13 @@ export function AISimpleChat({ className }: AISimpleChatProps) {
               placeholder="Ask me about Jordan..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
               rows={3}
               className="bg-black/5 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 focus:outline-none"
             />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Press Enter to send, Shift+Enter for new line
+            </p>
           </div>
 
           <div className="flex justify-end">
