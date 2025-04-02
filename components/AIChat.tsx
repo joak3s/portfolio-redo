@@ -251,7 +251,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
       </div>
 
       {/* Content with proper z-index */}
-      <div className="relative z-10 w-full rounded-2xl dark:bg-neutral-950/90 bg-white/90 backdrop-blur-xl border dark:border-white/10 border-black/20 py-8 px-6 sm:py-12 sm:px-12">
+      <div className="relative z-10 w-full rounded-2xl dark:bg-neutral-950/90 bg-white/90 backdrop-blur-xl border dark:border-white/10 border-black/20 py-8 px-4 sm:py-12 sm:px-12">
         
         {/* Combined Icon and Quick Prompts (disappear when loading) */}
         <AnimatePresence>
@@ -389,20 +389,32 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
           <div ref={messagesEndRef} />
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="mt-3">
           <div className="relative">
             <Textarea
               placeholder="Ask me about Jordan..."
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                // Dynamically adjust height within limits
+                const textarea = e.target;
+                textarea.style.height = 'auto';
+                const newHeight = Math.min(textarea.scrollHeight, 150); // Max height ~4 lines
+                textarea.style.height = `${newHeight}px`;
+              }}
               onKeyDown={handleKeyDown}
-              rows={1}
-              className="min-h-[40px] sm:min-h-[44px] py-2 sm:py-3 px-3 sm:px-4 text-sm bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30"
+              rows={2}
+              style={{
+                minHeight: "80px", // ~2 lines + padding
+                height: "auto",
+                boxSizing: "border-box"
+              }}
+              className="w-full py-2 sm:py-3 pl-3 pr-12 sm:pl-4 sm:pr-14 text-sm bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30 focus:transform-none focus:scale-100"
             />
             <Button 
               type="submit" 
               variant="outline"
-              className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow flex items-center gap-1 sm:gap-2 h-[28px] sm:h-[32px]"
+              className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow flex items-center gap-1 sm:gap-2 h-[28px] sm:h-[32px] z-10"
               disabled={isLoading || !message.trim()}
             >
               {isLoading ? 'Processing...' : <Send className="w-3 h-3 sm:w-4 sm:h-4" />}
