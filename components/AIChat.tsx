@@ -251,7 +251,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
       </div>
 
       {/* Content with proper z-index */}
-      <div className="relative z-10 w-full rounded-2xl dark:bg-neutral-950/90 bg-white/90 backdrop-blur-xl border dark:border-white/10 border-black/20 py-12 px-12">
+      <div className="relative z-10 w-full rounded-2xl dark:bg-neutral-950/90 bg-white/90 backdrop-blur-xl border dark:border-white/10 border-black/20 py-8 px-6 sm:py-12 sm:px-12">
         
         {/* Combined Icon and Quick Prompts (disappear when loading) */}
         <AnimatePresence>
@@ -263,10 +263,10 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
               transition={{ duration: 0.2 }}
             >
               {/* Clickable Icon at the top for random prompts */}
-              <div className="flex justify-center mb-12">
+              <div className="flex justify-center mb-6 sm:mb-12">
                 <button 
                   onClick={handleRandomPrompt}
-                  className="relative w-16 h-16 border-2 dark:border-white/10 border-black/20 rounded-xl transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-blue-400"
+                  className="relative w-14 h-14 sm:w-16 sm:h-16 border-2 dark:border-white/10 border-black/20 rounded-xl transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-blue-400"
                   aria-label="Generate random prompt"
                 >
                   <div 
@@ -288,7 +288,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.5 }}
                           >
-                            <Icon className="w-10 h-10 text-gray-700 dark:text-gray-400" strokeWidth={1.5} />
+                            <Icon className="w-8 h-8 sm:w-10 sm:h-10 text-gray-700 dark:text-gray-400" strokeWidth={1.5} />
                           </motion.div>
                         )
                       )}
@@ -298,12 +298,12 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
               </div>
 
               {/* Quick Prompts */}
-              <div className="flex flex-wrap gap-2 mb-2">
+              <div className="flex flex-wrap justify-center gap-2 mb-2">
                 {quickPrompts.map((prompt, index) => (
                   <Button 
                     key={index} 
                     variant="outline" 
-                    className="text-sm rounded-xl dark:bg-white/5 bg-black/3 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/6 transition-all" 
+                    className="text-xs sm:text-sm rounded-xl dark:bg-white/5 bg-black/3 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/6 transition-all" 
                     onClick={prompt.action}
                   >
                     {prompt.text}
@@ -315,7 +315,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
         </AnimatePresence>
 
         {/* Message list with auto-scroll */}
-        <div className="mb-4 pr-2 space-y-4 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30">
+        <div className="mb-4 pr-2 space-y-3 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30">
           {messages.map((msg, index) => (
             <div 
               key={index} 
@@ -328,15 +328,15 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
             >
               <div
                 className={cn(
-                  "p-3 rounded-xl",
+                  "p-2 sm:p-3 rounded-xl",
                   msg.role === 'assistant' 
-                    ? "dark:bg-white/5 bg-black/3 backdrop-blur-md px-8" 
-                    : "dark:bg-indigo-600/20 bg-purple-500/10 backdrop-blur-md px-4 ml-4"
+                    ? "dark:bg-white/5 bg-black/3 backdrop-blur-md px-4 sm:px-8 sm:max-w-[90%]" 
+                    : "dark:bg-indigo-600/20 bg-purple-500/10 backdrop-blur-md px-3 sm:px-4 ml-2 sm:ml-4 sm:max-w-[85%]"
                 )}
               >
                 {msg.role === 'assistant' ? (
                   <div 
-                    className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-sm dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0"
+                    className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-xs sm:text-sm dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-xs prose-pre:overflow-x-auto"
                     dangerouslySetInnerHTML={{ 
                       __html: msg.content.replace(
                         /```(\w+)?\n([\s\S]*?)```/g, 
@@ -345,7 +345,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
                     }} 
                   />
                 ) : (
-                  <p className="text-sm dark:text-white text-neutral-900">{msg.content}</p>
+                  <p className="text-xs sm:text-sm dark:text-white text-neutral-900">{msg.content}</p>
                 )}
               </div>
             </div>
@@ -359,10 +359,10 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
               exit={{ opacity: 0 }}
               className="flex items-start gap-3 p-3 rounded-xl dark:bg-white/5 bg-black/5 backdrop-blur-md"
             >
-              <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+              <div className="flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
                 <svg 
-                  width="16" 
-                  height="16" 
+                  width="14" 
+                  height="14" 
                   viewBox="0 0 24 24" 
                   fill="none" 
                   stroke="currentColor" 
@@ -375,11 +375,11 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
                   <path d="M12 6v6l4 2" />
                 </svg>
               </div>
-              <div className="flex-1 h-7 flex items-center">
+              <div className="flex-1 h-6 sm:h-7 flex items-center">
                 <div className="flex space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
                 </div>
               </div>
             </motion.div>
@@ -397,15 +397,15 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
-              className="min-h-[44px] py-3 px-4 bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30"
+              className="min-h-[40px] sm:min-h-[44px] py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30"
             />
             <Button 
               type="submit" 
               variant="outline"
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow flex items-center gap-2 h-[32px]"
+              className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow flex items-center gap-1 sm:gap-2 h-[28px] sm:h-[32px]"
               disabled={isLoading || !message.trim()}
             >
-              {isLoading ? 'Processing...' : <Send className="w-4 h-4" />}
+              {isLoading ? 'Processing...' : <Send className="w-3 h-3 sm:w-4 sm:h-4" />}
             </Button>
           </div>
         </form>
