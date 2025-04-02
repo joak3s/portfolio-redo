@@ -17,7 +17,6 @@ const navItems = [
   { name: "Work", path: "/work" },
   { name: "Journey", path: "/journey" },
   { name: "Contact", path: "/contact" },
-  { name: "Playground", path: "/playground" },
 ]
 
 // Client-side only wrapper component

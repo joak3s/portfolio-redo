@@ -169,11 +169,11 @@ export function ProjectContent({ slug }: ProjectContentProps) {
 
           {/* First Three Images - Displayed in three columns */}
           {firstThreeImages.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
               {firstThreeImages.map((image, index) => (
                 <div
                   key={`featured-image-${index}`}
-                  className="relative aspect-[3/2] overflow-hidden rounded-lg cursor-pointer group"
+                  className="relative aspect-[16/9] overflow-hidden shadow-md dark:border-2 rounded-lg cursor-pointer group"
                   onClick={() => setSelectedImageIndex(index)}
                 >
                   <Image
@@ -223,11 +223,11 @@ export function ProjectContent({ slug }: ProjectContentProps) {
           {remainingImages.length > 0 && (
             <div className="mt-8">
               <h2 className="text-xl font-semibold mb-4">Gallery</h2>
-              <div className="grid grid-cols-1 gap-8">
+              <div className="grid grid-cols-2 gap-8">
                 {remainingImages.map((image, index) => (
                   <div
                     key={`gallery-image-${index}`}
-                    className="relative aspect-[3/2] overflow-hidden rounded-lg cursor-pointer group"
+                    className="relative aspect-[16/9] overflow-hidden shadow-lg dark:border-2 rounded-lg cursor-pointer group"
                     onClick={() => setSelectedImageIndex(index + 3)} // +3 to account for the first three images
                   >
                     <Image
