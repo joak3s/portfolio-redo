@@ -83,10 +83,6 @@ export default function AdminJourneyPage() {
     router.push(`/admin/journey/edit/${id}`)
   }
 
-  const handleManageImages = (id: string) => {
-    router.push(`/admin/journey/${id}/images`)
-  }
-
   const handleCreate = () => {
     router.push("/admin/journey/create")
   }
@@ -112,6 +108,64 @@ export default function AdminJourneyPage() {
           Add Milestone
         </Button>
       </div>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Narrative Arc Structure Guide</CardTitle>
+          <CardDescription>
+            Create a compelling professional journey with these suggested milestones
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-medium mb-2">Recommended Milestones Structure</h3>
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <p><strong>1. Beginning (2015):</strong> First Graphic Design Commission</p>
+                    <p className="text-muted-foreground text-xs mt-1">Shows your origins in graphic design, establishes your foundation in visual communication, and emphasizes client work experience from the start.</p>
+                  </div>
+                  <div>
+                    <p><strong>2. Educational Foundation (2018):</strong> UC Santa Cruz</p>
+                    <p className="text-muted-foreground text-xs mt-1">Highlights your academic credentials, explains the theoretical underpinning of your approach, and links cognitive science to your user-centered design philosophy.</p>
+                  </div>
+                  <div>
+                    <p><strong>3. Transition Point (2020):</strong> Precision Mercedes</p>
+                    <p className="text-muted-foreground text-xs mt-1">Marks your pivot from pure graphic design to web experiences, showcases your first significant client presentation, and demonstrates growing technical skills.</p>
+                  </div>
+                  <div>
+                    <p><strong>4. Skill Expansion (2021):</strong> Off The Leash Lifestyle</p>
+                    <p className="text-muted-foreground text-xs mt-1">Shows diversification into e-commerce, highlights integration of social media with digital design, and demonstrates growing business acumen with conversion-focused design.</p>
+                  </div>
+                  <div>
+                    <p><strong>5. Professional Growth (2022):</strong> Aletheia Digital Media</p>
+                    <p className="text-muted-foreground text-xs mt-1">Career advancement into an agency role, leadership responsibilities and team management, and client portfolio expansion and project management skills.</p>
+                  </div>
+                  <div>
+                    <p><strong>6. Technical Mastery (2023):</strong> Swyvvl Real Estate Platform</p>
+                    <p className="text-muted-foreground text-xs mt-1">Full-stack development capabilities, complex project showcasing both design and technical expertise, and positions you as a complete product designer.</p>
+                  </div>
+                  <div>
+                    <p><strong>7. Current Expertise (2024):</strong> AI Integration Specialist</p>
+                    <p className="text-muted-foreground text-xs mt-1">Shows your cutting-edge skills in AI integration, demonstrates currency with latest technology trends, and represents the culmination of your journey.</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-medium mb-2">Why Use a Narrative Arc?</h3>
+                <ul className="list-disc list-inside space-y-2 text-sm">
+                  <li>Shows clear professional growth over time</li>
+                  <li>Highlights your diverse skill acquisition</li>
+                  <li>Creates a compelling story for visitors</li>
+                  <li>Demonstrates your intentional career path</li>
+                  <li>Makes your experience more memorable</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {error && (
         <div className="bg-destructive/10 text-destructive p-4 rounded-md mb-8">
@@ -156,14 +210,6 @@ export default function AdminJourneyPage() {
                   </Button>
                   <Button
                     size="icon"
-                    variant="secondary"
-                    onClick={() => handleManageImages(milestone.id)}
-                    title="Manage images"
-                  >
-                    <img src="/images/gallery-icon.svg" alt="Gallery" className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
                     variant="destructive"
                     onClick={() => handleDelete(milestone.id)}
                     title="Delete milestone"
@@ -178,7 +224,7 @@ export default function AdminJourneyPage() {
                     <CardTitle>{milestone.title}</CardTitle>
                     <CardDescription>{milestone.year}</CardDescription>
                   </div>
-                  <Badge variant="outline">Order: {milestone.order}</Badge>
+                  <Badge variant="outline">Order: {milestone.display_order}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -191,15 +237,6 @@ export default function AdminJourneyPage() {
                   ))}
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => handleManageImages(milestone.id)}
-                >
-                  Manage Images
-                </Button>
-              </CardFooter>
             </Card>
           ))}
         </div>

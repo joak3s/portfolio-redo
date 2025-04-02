@@ -17,6 +17,7 @@ export interface JourneyMilestone {
   icon: string
   color: string
   image: string
-  order: number
+  display_order: number
   created_at: string
+  updated_at: string
 } 

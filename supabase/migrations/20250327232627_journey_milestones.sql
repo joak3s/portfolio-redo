@@ -15,13 +15,31 @@ CREATE TABLE IF NOT EXISTS journey_milestones (
 -- Enable Row Level Security
 ALTER TABLE journey_milestones ENABLE ROW LEVEL SECURITY;
 
--- Create policy for public read access
-CREATE POLICY "Allow public read access" ON journey_milestones
-  FOR SELECT USING (true);
+-- Create policy for public read access if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'journey_milestones' 
+    AND policyname = 'Allow public read access'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow public read access" ON journey_milestones FOR SELECT USING (true)';
+  END IF;
+END
+$$;
 
 -- Create policy for authenticated users to manage milestones
-CREATE POLICY "Allow authenticated users to manage milestones" ON journey_milestones
-  USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'journey_milestones' 
+    AND policyname = 'Allow authenticated users to manage milestones'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow authenticated users to manage milestones" ON journey_milestones USING (auth.role() = ''authenticated'')';
+  END IF;
+END
+$$;
 
 -- Insert sample data
 INSERT INTO journey_milestones (title, year, description, skills, icon, color, image, display_order)

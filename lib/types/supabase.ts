@@ -145,6 +145,7 @@ export type Database = {
           image: string
           display_order: number
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -157,6 +158,7 @@ export type Database = {
           image: string
           display_order: number
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -168,34 +170,6 @@ export type Database = {
           color?: string
           image?: string
           display_order?: number
-          created_at?: string
-        }
-      }
-      journey_milestone_images: {
-        Row: {
-          id: string
-          milestone_id: string
-          url: string
-          alt_text: string | null
-          order_index: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          milestone_id: string
-          url: string
-          alt_text?: string | null
-          order_index?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          milestone_id?: string
-          url?: string
-          alt_text?: string | null
-          order_index?: number
           created_at?: string
           updated_at?: string
         }

@@ -24,6 +24,7 @@ import { supabaseClient } from "@/lib/supabase-browser"
 import { v4 as uuidv4 } from "uuid"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Switch } from "@/components/ui/switch"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -227,6 +228,51 @@ export default function AdminPage() {
       sanitizedProject.tag_ids = sanitizedProject.tag_ids
         .filter(id => id && typeof id === 'string');
       
+      // Handle featured order uniqueness
+      if ((sanitizedProject.featured || 0) > 0) {
+        // Find all projects that need to be updated due to featured order conflict
+        const featuredValue = sanitizedProject.featured || 0;
+        const projectsToUpdate = projects.filter(p => 
+          (p.featured || 0) === featuredValue && 
+          (!isUpdate || p.id !== (sanitizedProject as ProjectUpdate).id)
+        )
+        
+        // If we have conflicts, resolve them by updating other projects
+        if (projectsToUpdate.length > 0) {
+          console.log(`Resolving featured order conflicts for order: ${featuredValue}`)
+          
+          // Get all featured values currently in use (excluding the current project if it's an update)
+          const featuredValues = projects
+            .filter(p => (p.featured || 0) > 0 && (!isUpdate || p.id !== (sanitizedProject as ProjectUpdate).id))
+            .map(p => p.featured || 0)
+            .sort((a, b) => (a || 0) - (b || 0))
+          
+          // For each project with the same featured value, we need to shift it
+          for (const conflictProject of projectsToUpdate) {
+            // Find the next available featured value
+            let newFeaturedValue = (sanitizedProject.featured || 0) + 1
+            while (featuredValues.includes(newFeaturedValue)) {
+              newFeaturedValue++
+            }
+            
+            console.log(`Updating project ${conflictProject.id} featured from ${conflictProject.featured} to ${newFeaturedValue}`)
+            
+            // Update the project in the database
+            await fetch(`/api/admin/projects?id=${conflictProject.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: conflictProject.id,
+                featured: newFeaturedValue
+              })
+            })
+            
+            // Add this value to our used values
+            featuredValues.push(newFeaturedValue)
+          }
+        }
+      }
+      
       console.log(`${isUpdate ? 'Updating' : 'Creating'} project with ${sanitizedProject.images?.length || 0} images`);
       
       let response;
@@ -326,12 +372,84 @@ export default function AdminPage() {
     }
   }
 
+  // New function to toggle project status
+  const handleToggleStatus = async (project: Project) => {
+    try {
+      const newStatus = project.status === 'published' ? 'draft' : 'published'
+      
+      const response = await fetch(`/api/admin/projects?id=${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: project.id,
+          status: newStatus
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to update project status to ${newStatus}`)
+      }
+
+      toast({
+        title: "Status Updated",
+        description: `${project.title} is now ${newStatus === 'published' ? 'published' : 'in draft mode'}.`,
+      })
+
+      // Update project status locally to avoid refetching all projects
+      setProjects(projects.map(p => 
+        p.id === project.id ? { ...p, status: newStatus } : p
+      ))
+    } catch (error) {
+      console.error("Error updating project status:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update project status",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleInputChange = (field: string, value: any) => {
     if (!selectedProject) return
     if (formErrors[field]) {
       setFormErrors({ ...formErrors, [field]: "" })
     }
-    setSelectedProject({ ...selectedProject, [field]: value })
+    
+    // Special handling for featured order to ensure uniqueness
+    if (field === "featured" && value > 0) {
+      setSelectedProject({ ...selectedProject, [field]: value })
+    } else {
+      setSelectedProject({ ...selectedProject, [field]: value })
+    }
+  }
+
+  // New function to handle featured order changes with uniqueness check
+  const handleFeaturedOrderChange = (value: number) => {
+    if (!selectedProject) return
+    
+    // If setting to 0 (not featured), just update normally
+    if (value === 0) {
+      handleInputChange("featured", 0)
+      return
+    }
+    
+    // Check if another project already has this featured order
+    const projectWithSameOrder = projects.find(p => 
+      p.featured === value && 
+      (!("id" in selectedProject) || p.id !== selectedProject.id)
+    )
+    
+    // Update the selected project with new featured order
+    handleInputChange("featured", value)
+    
+    // Show toast notification if we're going to reorder
+    if (projectWithSameOrder) {
+      toast({
+        title: "Featured Order Updated",
+        description: "Other projects with conflicting order will be adjusted automatically when saved.",
+      })
+    }
   }
 
   const handleSlugChange = (value: string) => {
@@ -654,11 +772,12 @@ export default function AdminPage() {
                         <Badge 
                           variant="outline"
                           className={cn(
-                            "capitalize border",
+                            "capitalize cursor-pointer border",
                             project.status === 'published' 
-                              ? "border-green-500/50 text-green-700 dark:border-green-400/50 dark:text-green-400 hover:bg-green-500/5" 
-                              : "border-muted-foreground/20"
+                              ? "border-green-500/50 text-green-700 dark:border-green-400/50 dark:text-green-400 hover:bg-green-500/10" 
+                              : "border-muted-foreground/20 hover:bg-muted/50"
                           )}
+                          onClick={() => handleToggleStatus(project)}
                         >
                           {project.status}
                         </Badge>
@@ -719,6 +838,18 @@ export default function AdminPage() {
                                   #{project.featured}
                                 </Badge>
                               )}
+                              <Badge 
+                                variant="outline"
+                                className={cn(
+                                  "capitalize cursor-pointer border",
+                                  project.status === 'published' 
+                                    ? "border-green-500/50 text-green-700 dark:border-green-400/50 dark:text-green-400 bg-green-500/10" 
+                                    : "border-muted-foreground/20 bg-muted/30"
+                                )}
+                                onClick={() => handleToggleStatus(project)}
+                              >
+                                {project.status}
+                              </Badge>
                             </div>
                           </div>
                         </div>
@@ -738,6 +869,18 @@ export default function AdminPage() {
                               className="text-destructive focus:text-destructive hover:bg-destructive/10"
                             >
                               <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleToggleStatus(project)}
+                              className={project.status === 'published' 
+                                ? "text-amber-600 focus:text-amber-600 hover:bg-amber-500/10"
+                                : "text-green-600 focus:text-green-600 hover:bg-green-500/10"
+                              }
+                            >
+                              {project.status === 'published' 
+                                ? <><X className="mr-2 h-4 w-4" />Unpublish</>
+                                : <><Check className="mr-2 h-4 w-4" />Publish</>
+                              }
                             </DropdownMenuItem>
                             {project.website_url && (
                               <DropdownMenuItem asChild className="hover:bg-muted">
@@ -919,10 +1062,25 @@ export default function AdminPage() {
                             min={0}
                             max={99}
                             value={selectedProject.featured || 0}
-                            onChange={(e) => handleInputChange("featured", parseInt(e.target.value) || 0)}
+                            onChange={(e) => handleFeaturedOrderChange(parseInt(e.target.value) || 0)}
                             placeholder="0"
                           />
-                          <p className="text-xs text-muted-foreground">Lower numbers appear first in featured sections</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className={(selectedProject.featured || 0) > 0 ? "text-amber-500 dark:text-amber-400" : ""}>
+                              {(selectedProject.featured || 0) > 0 ? "This project will appear in the featured section" : "0 = Not featured"}
+                            </div>
+                            {(selectedProject.featured || 0) > 0 && projects.some(p => 
+                              (p.featured || 0) === (selectedProject.featured || 0) && 
+                              (!("id" in selectedProject) || p.id !== selectedProject.id)
+                            ) && (
+                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+                                Will reorder others
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Lower numbers appear first in featured sections. Each featured project must have a unique order number.
+                          </p>
                         </div>
                         
                     <div className="space-y-2">
@@ -933,6 +1091,41 @@ export default function AdminPage() {
                         onChange={(e) => handleInputChange("website_url", e.target.value)}
                         placeholder="Enter project website URL"
                       />
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label htmlFor="status">Publication Status</Label>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedProject?.status === 'published' 
+                              ? "Project is publicly visible on your portfolio" 
+                              : "Project is saved but not publicly visible"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id="status"
+                            checked={selectedProject?.status === 'published'}
+                            onCheckedChange={(checked) => {
+                              if (selectedProject) {
+                                handleInputChange("status", checked ? 'published' : 'draft')
+                              }
+                            }}
+                          />
+                          <Badge 
+                            variant="outline"
+                            className={cn(
+                              "capitalize",
+                              selectedProject?.status === 'published' 
+                                ? "border-green-500/50 text-green-700 dark:text-green-400 bg-green-500/10" 
+                                : "border-muted-foreground/20 bg-muted/30"
+                            )}
+                          >
+                            {selectedProject?.status || 'draft'}
+                          </Badge>
+                        </div>
+                      </div>
                     </div>
 
                   </TabsContent>

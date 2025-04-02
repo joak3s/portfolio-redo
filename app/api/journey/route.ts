@@ -10,7 +10,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("journey_milestones")
       .select("*")
-      .order("order", { ascending: true })
+      .order("display_order", { ascending: true })
     
     if (error) {
       console.error("Error fetching journey milestones:", error)
@@ -47,9 +47,9 @@ export async function POST(request: Request) {
     const json = await request.json()
     
     // Basic validation
-    const { title, year, description, skills, icon, color, image, order } = json
+    const { title, year, description, skills, icon, color, image, display_order } = json
     
-    if (!title || !year || !description || !Array.isArray(skills) || !icon || !color || !image || typeof order !== 'number') {
+    if (!title || !year || !description || !Array.isArray(skills) || !icon || !color || !image || typeof display_order !== 'number') {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         icon,
         color,
         image,
-        order
+        display_order
       })
       .select()
       .single()
