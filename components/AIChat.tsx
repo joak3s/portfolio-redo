@@ -91,7 +91,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
   // Updated quick prompts aligned with general_info categories
   const quickPrompts: QuickPrompt[] = [
     { 
-      text: 'Design approach',
+      text: 'UX Design',
       action: () => handleQuickPrompt('What is Jordan\'s approach to design and UX?')
     },
     { 
