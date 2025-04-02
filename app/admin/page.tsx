@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import type { Project, ProjectCreate, ProjectUpdate, ProjectImage, Tool, Tag } from "@/lib/types"
-import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, AlertCircle, Check, ChevronsUpDown, X, Loader2 } from "lucide-react"
+import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, AlertCircle, Check, ChevronsUpDown, X, Loader2, MoveUp, MoveDown, ArrowUp, ArrowDown, GripVertical } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -440,14 +440,18 @@ export default function AdminPage() {
       if (!uploadResult) return
 
       // Create the new image object
-      const newImage = {
+      const newImage: { url: string; alt_text: string; order_index: number } = {
         url: uploadResult.url,
         alt_text: file.name.split('.')[0],
         order_index: (selectedProject.images || []).length
       }
 
       // Update the project's images array
-      const newImages = [...(selectedProject.images || []), newImage]
+      const newImages: { url: string; alt_text?: string; order_index: number }[] = [...(selectedProject.images || []), newImage]
+      // Make sure order_index values are consecutive and zero-based
+      newImages.forEach((img: { url: string; alt_text?: string; order_index: number }, idx: number) => {
+        img.order_index = idx
+      })
       handleInputChange("images", newImages)
 
       toast({
@@ -1012,22 +1016,72 @@ export default function AdminPage() {
                                       <Trash2 className="h-4 w-4 mr-1" />
                                       Remove
                                     </Button>
+                                    
+                                    <div className="flex gap-1">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 bg-white/20"
+                                        onClick={() => {
+                                          if (!selectedProject?.images || index === 0) return
+                                          const newImages: { url: string; alt_text?: string; order_index: number }[] = [...selectedProject.images]
+                                          // Swap with previous image using temp variable to avoid reference error
+                                          const temp = newImages[index];
+                                          newImages[index] = newImages[index - 1];
+                                          newImages[index - 1] = temp;
+                                          // Update order_index values
+                                          newImages.forEach((img: { url: string; alt_text?: string; order_index: number }, idx: number) => {
+                                            img.order_index = idx
+                                          })
+                                          handleInputChange("images", newImages)
+                                        }}
+                                        disabled={index === 0}
+                                      >
+                                        <ArrowUp className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 bg-white/20"
+                                        onClick={() => {
+                                          if (!selectedProject?.images || index === selectedProject.images.length - 1) return
+                                          const newImages: { url: string; alt_text?: string; order_index: number }[] = [...selectedProject.images]
+                                          // Swap with next image using temp variable to avoid reference error
+                                          const temp = newImages[index];
+                                          newImages[index] = newImages[index + 1];
+                                          newImages[index + 1] = temp;
+                                          // Update order_index values
+                                          newImages.forEach((img: { url: string; alt_text?: string; order_index: number }, idx: number) => {
+                                            img.order_index = idx
+                                          })
+                                          handleInputChange("images", newImages)
+                                        }}
+                                        disabled={index === (selectedProject.images?.length || 0) - 1}
+                                      >
+                                        <ArrowDown className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </div>
                                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60">
-                                    <Input
-                                      value={image.alt_text || ""}
-                                      onChange={(e) => {
-                                        if (!selectedProject?.images) return
-                                        const newImages = [...selectedProject.images]
-                                        newImages[index] = {
-                                          ...newImages[index],
-                                          alt_text: e.target.value
-                                        }
-                                        handleInputChange("images", newImages)
-                                      }}
-                                      placeholder="Alt text for accessibility"
-                                      className="h-7 text-sm bg-transparent border-muted-foreground/40"
-                                    />
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline" className="bg-black/40 text-white text-xs">
+                                        #{image.order_index + 1}
+                                      </Badge>
+                                      <Input
+                                        value={image.alt_text || ""}
+                                        onChange={(e) => {
+                                          if (!selectedProject?.images) return
+                                          const newImages = [...selectedProject.images]
+                                          newImages[index] = {
+                                            ...newImages[index],
+                                            alt_text: e.target.value
+                                          }
+                                          handleInputChange("images", newImages)
+                                        }}
+                                        placeholder="Alt text for accessibility"
+                                        className="h-7 text-sm bg-transparent border-muted-foreground/40"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               ))}
