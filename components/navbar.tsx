@@ -136,18 +136,18 @@ export default function Navbar() {
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
-            {/* Backdrop */}
+            {/* Backdrop - lower z-index than navbar and doesn't cover it */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 top-16 bg-background/80 z-30 md:hidden"
               onClick={toggleMobileMenu}
               aria-hidden="true"
             />
 
-            {/* Menu Panel */}
+            {/* Menu Panel - same z-index as navbar */}
             <motion.div
               id="mobile-menu"
               initial={{ x: "100%" }}
@@ -159,7 +159,7 @@ export default function Navbar() {
                 stiffness: 300,
                 duration: 0.3
               }}
-              className="fixed top-16 right-0 bottom-0 w-3/4 max-w-sm z-50 md:hidden
+              className="fixed top-16 right-0 bottom-0 w-3/4 max-w-sm z-40 md:hidden
                          overflow-y-auto overscroll-contain
                          bg-background border-l border-border shadow-lg"
               role="dialog"

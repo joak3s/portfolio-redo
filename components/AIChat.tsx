@@ -303,7 +303,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
                   <Button 
                     key={index} 
                     variant="outline" 
-                    className="text-xs sm:text-sm rounded-xl dark:bg-white/5 bg-black/3 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/6 transition-all" 
+                    className="text-sm rounded-xl dark:bg-white/5 bg-black/3 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/6 transition-all" 
                     onClick={prompt.action}
                   >
                     {prompt.text}
@@ -336,7 +336,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
               >
                 {msg.role === 'assistant' ? (
                   <div 
-                    className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-xs sm:text-sm dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-xs prose-pre:overflow-x-auto"
+                    className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-sm dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-sm prose-pre:overflow-x-auto"
                     dangerouslySetInnerHTML={{ 
                       __html: msg.content.replace(
                         /```(\w+)?\n([\s\S]*?)```/g, 
@@ -345,7 +345,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
                     }} 
                   />
                 ) : (
-                  <p className="text-xs sm:text-sm dark:text-white text-neutral-900">{msg.content}</p>
+                  <p className="text-sm dark:text-white text-neutral-900">{msg.content}</p>
                 )}
               </div>
             </div>
@@ -397,7 +397,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
-              className="min-h-[40px] sm:min-h-[44px] py-2 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30"
+              className="min-h-[40px] sm:min-h-[44px] py-2 sm:py-3 px-3 sm:px-4 text-sm bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30"
             />
             <Button 
               type="submit" 
