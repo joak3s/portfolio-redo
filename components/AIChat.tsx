@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, BrainCog, Brain, PenTool, Zap, MessageCircleCode, MessageCircleDashed } from 'lucide-react';
+import { Send, BrainCog, Brain, PenTool, Zap, MessageCircleCode, MessageCircleDashed} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -251,7 +251,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
       </div>
 
       {/* Content with proper z-index */}
-      <div className="relative z-10 w-full rounded-2xl dark:bg-neutral-950/90 bg-white/90 backdrop-blur-xl border dark:border-white/10 border-black/20 py-6 px-12">
+      <div className="relative z-10 w-full rounded-2xl dark:bg-neutral-950/90 bg-white/90 backdrop-blur-xl border dark:border-white/10 border-black/20 py-12 px-12">
         
         {/* Combined Icon and Quick Prompts (disappear when loading) */}
         <AnimatePresence>
@@ -263,7 +263,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
               transition={{ duration: 0.2 }}
             >
               {/* Clickable Icon at the top for random prompts */}
-              <div className="flex justify-center mb-6">
+              <div className="flex justify-center mb-12">
                 <button 
                   onClick={handleRandomPrompt}
                   className="relative w-16 h-16 border-2 dark:border-white/10 border-black/20 rounded-xl transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-blue-400"
@@ -272,7 +272,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
                   <div 
                     className="absolute inset-0 rounded-xl animate-pulse duration-8000"
                     style={{
-                      background: `radial-gradient(circle, rgba(115, 123, 137, 0.1) 100%, transparent 20%)`,
+                      background: `radial-gradient(circle, rgba(137, 141, 148, 0.1) 100%, transparent 20%)`,
                       filter: 'blur(4px)'
                     }}
                   ></div>
@@ -303,7 +303,7 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
                   <Button 
                     key={index} 
                     variant="outline" 
-                    className="text-sm rounded-xl dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow" 
+                    className="text-sm rounded-xl dark:bg-white/5 bg-black/3 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/6 transition-all" 
                     onClick={prompt.action}
                   >
                     {prompt.text}
@@ -315,38 +315,35 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
         </AnimatePresence>
 
         {/* Message list with auto-scroll */}
-        <div className="mb-4 space-y-4 max-h-[300px] overflow-y-auto">
+        <div className="mb-4 pr-2 space-y-4 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30">
           {messages.map((msg, index) => (
             <div 
               key={index} 
               className={cn(
-                "flex items-start gap-3 p-3 rounded-xl",
+                "flex",
                 msg.role === 'assistant' 
-                  ? "dark:bg-white/5 bg-black/5 backdrop-blur-md" 
-                  : "dark:bg-indigo-600/20 bg-purple-500/10 backdrop-blur-md w-4/5 ml-auto"
+                  ? "justify-start" 
+                  : "justify-end"
               )}
             >
-              {msg.role === 'assistant' && (
-                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white shadow-sm">
-                  <svg 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                    className="text-white"
-                  >
-                    <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12a10 10 0 0 1 10-10z" />
-                    <path d="M12 6v6l4 2" />
-                  </svg>
-                </div>
-              )}
-              <div className="flex-1">
+              <div
+                className={cn(
+                  "p-3 rounded-xl",
+                  msg.role === 'assistant' 
+                    ? "dark:bg-white/5 bg-black/3 backdrop-blur-md px-8" 
+                    : "dark:bg-indigo-600/20 bg-purple-500/10 backdrop-blur-md px-4 ml-4"
+                )}
+              >
                 {msg.role === 'assistant' ? (
-                  <div className="text-sm dark:text-white text-neutral-900" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                  <div 
+                    className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-sm dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0"
+                    dangerouslySetInnerHTML={{ 
+                      __html: msg.content.replace(
+                        /```(\w+)?\n([\s\S]*?)```/g, 
+                        (_, lang, code) => `<pre><code class="language-${lang || ''}">${code.trim()}</code></pre>`
+                      )
+                    }} 
+                  />
                 ) : (
                   <p className="text-sm dark:text-white text-neutral-900">{msg.content}</p>
                 )}
@@ -393,29 +390,22 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
+          <div className="relative">
             <Textarea
               placeholder="Ask me about Jordan..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              rows={3}
-              className="bg-black/5 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 focus:outline-none"
+              rows={1}
+              className="min-h-[44px] py-3 px-4 bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30"
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Press Enter to send, Shift+Enter for new line
-            </p>
-          </div>
-
-          <div className="flex justify-end">
             <Button 
               type="submit" 
               variant="outline"
-              className="px-4 py-2 rounded-xl dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow flex items-center gap-2"
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow flex items-center gap-2 h-[32px]"
               disabled={isLoading || !message.trim()}
             >
-              {isLoading ? 'Processing...' : 'Ask AI'} 
-              {!isLoading && <Send className="w-4 h-4" />}
+              {isLoading ? 'Processing...' : <Send className="w-4 h-4" />}
             </Button>
           </div>
         </form>
