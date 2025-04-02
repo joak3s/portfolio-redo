@@ -56,7 +56,7 @@ export default function Home() {
           </ClientOnly>
         )}
         
-        <div className="w-full max-w-3xl mx-auto px-4 mb-16">
+        <div className="w-full max-w-3xl mx-auto px-3 mb-16">
           <AISimpleChat />
         </div>
       </div>
