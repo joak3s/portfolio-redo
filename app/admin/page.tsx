@@ -918,7 +918,7 @@ export default function AdminPage() {
         )}
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 sm:p-6 bg-background border-muted">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 sm:p-6 bg-background border-muted">
             <DialogHeader className="px-6 pt-6 sm:px-0 sm:pt-0">
               <DialogTitle>
                 {selectedProject && "id" in selectedProject ? "Edit Project" : "Create Project"}

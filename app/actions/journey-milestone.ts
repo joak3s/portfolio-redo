@@ -6,6 +6,7 @@ import { type JourneyEntry, type JourneyEntryCreate, type JourneyEntryUpdate } f
 
 interface CreateJourneyInput {
   title: string;
+  subtitle?: string;
   year: string;
   description: string;
   skills: string[];
@@ -25,6 +26,7 @@ export async function createJourneyEntry(
   try {
     console.log('Creating journey entry with data:', {
       title: data.title,
+      subtitle: data.subtitle || '',
       year: data.year,
       skills: data.skills?.length || 0,
       hasImageUrl: !!data.image_url
@@ -62,6 +64,7 @@ export async function createJourneyEntry(
       'create_journey',
       {
         p_title: data.title,
+        p_subtitle: data.subtitle || null,
         p_year: data.year,
         p_description: data.description,
         p_skills: data.skills,
@@ -138,6 +141,7 @@ export async function updateJourneyEntry(
     console.log('Updating journey entry data');
     const updateData: any = {};
     if (data.title) updateData.title = data.title;
+    if (data.subtitle !== undefined) updateData.subtitle = data.subtitle;
     if (data.year) updateData.year = data.year;
     if (data.description) updateData.description = data.description;
     if (data.skills) updateData.skills = data.skills;

@@ -69,14 +69,14 @@ export default function TimelineMilestone({
         tabIndex={0}
         aria-label={`Milestone: ${milestone.title} (${milestone.year})`}
       >
-        <div className="relative aspect-video md:aspect-[2.4/1] overflow-hidden">
+        <div className="relative aspect-video md:aspect-[16/9] overflow-hidden">
           <Image 
             src={getImageUrl()} 
             alt={`Illustration for ${milestone.title}`} 
             fill 
             className="object-cover transition-transform hover:scale-105 duration-500" 
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-background/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-background/0" />
           <div className="absolute bottom-4 left-4 right-4">
             <div className="flex items-center gap-2 mb-2">
               <motion.div 

@@ -29,6 +29,7 @@ export default function AdminJourneyPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [title, setTitle] = useState("")
+  const [subtitle, setSubtitle] = useState("")
   const [year, setYear] = useState("")
   const [description, setDescription] = useState("")
   const [skills, setSkills] = useState<string[]>([])
@@ -56,6 +57,7 @@ export default function AdminJourneyPage() {
 
   const resetForm = () => {
     setTitle("")
+    setSubtitle("")
     setYear("")
     setDescription("")
     setSkills([])
@@ -212,6 +214,7 @@ export default function AdminJourneyPage() {
   const handleEdit = (entry: JourneyEntry) => {
     setCurrentId(entry.id)
     setTitle(entry.title)
+    setSubtitle(entry.subtitle || '')
     setYear(entry.year)
     setDescription(entry.description)
     setSkills(entry.skills || [])
@@ -292,6 +295,7 @@ export default function AdminJourneyPage() {
       // Extract and format the data (now with uploadedImageUrl instead of imageFile)
       const formData = {
         title,
+        subtitle,
         year,
         description,
         skills,
@@ -303,6 +307,7 @@ export default function AdminJourneyPage() {
       
       console.log('Processed form data:', {
         title: formData.title,
+        subtitle: formData.subtitle,
         year: formData.year,
         hasSkills: formData.skills?.length > 0,
         hasImage: !!formData.image_url
@@ -390,64 +395,6 @@ export default function AdminJourneyPage() {
           </Alert>
         )}
 
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Narrative Arc Structure Guide</CardTitle>
-            <CardDescription>
-              Create a compelling professional journey with these suggested milestones
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium mb-2">Recommended Milestones Structure</h3>
-                  <div className="space-y-4 text-sm">
-                    <div>
-                      <p><strong>1. Beginning (2015):</strong> First Graphic Design Commission</p>
-                      <p className="text-muted-foreground text-xs mt-1">Shows your origins in graphic design, establishes your foundation in visual communication, and emphasizes client work experience from the start.</p>
-                    </div>
-                    <div>
-                      <p><strong>2. Educational Foundation (2018):</strong> UC Santa Cruz</p>
-                      <p className="text-muted-foreground text-xs mt-1">Highlights your academic credentials, explains the theoretical underpinning of your approach, and links cognitive science to your user-centered design philosophy.</p>
-                    </div>
-                    <div>
-                      <p><strong>3. Transition Point (2020):</strong> Precision Mercedes</p>
-                      <p className="text-muted-foreground text-xs mt-1">Marks your pivot from pure graphic design to web experiences, showcases your first significant client presentation, and demonstrates growing technical skills.</p>
-                    </div>
-                    <div>
-                      <p><strong>4. Skill Expansion (2021):</strong> Off The Leash Lifestyle</p>
-                      <p className="text-muted-foreground text-xs mt-1">Shows diversification into e-commerce, highlights integration of social media with digital design, and demonstrates growing business acumen with conversion-focused design.</p>
-                    </div>
-                    <div>
-                      <p><strong>5. Professional Growth (2022):</strong> Aletheia Digital Media</p>
-                      <p className="text-muted-foreground text-xs mt-1">Career advancement into an agency role, leadership responsibilities and team management, and client portfolio expansion and project management skills.</p>
-                    </div>
-                    <div>
-                      <p><strong>6. Technical Mastery (2023):</strong> Swyvvl Real Estate Platform</p>
-                      <p className="text-muted-foreground text-xs mt-1">Full-stack development capabilities, complex project showcasing both design and technical expertise, and positions you as a complete product designer.</p>
-                    </div>
-                    <div>
-                      <p><strong>7. Current Expertise (2024):</strong> AI Integration Specialist</p>
-                      <p className="text-muted-foreground text-xs mt-1">Shows your cutting-edge skills in AI integration, demonstrates currency with latest technology trends, and represents the culmination of your journey.</p>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-medium mb-2">Why Use a Narrative Arc?</h3>
-                  <ul className="list-disc list-inside space-y-2 text-sm">
-                    <li>Shows clear professional growth over time</li>
-                    <li>Highlights your diverse skill acquisition</li>
-                    <li>Creates a compelling story for visitors</li>
-                    <li>Demonstrates your intentional career path</li>
-                    <li>Makes your experience more memorable</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {journeyEntries.length === 0 && !isLoading ? (
           <Card className="mb-8">
             <CardContent className="pt-6 pb-6">
@@ -464,18 +411,37 @@ export default function AdminJourneyPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Order</TableHead>
-                    <TableHead className="w-[160px]">Image</TableHead>
+                    <TableHead className="w-[60px]">Order</TableHead>
+                    <TableHead className="w-[80px]">Year</TableHead>
                     <TableHead>Title</TableHead>
-                    <TableHead>Year</TableHead>
                     <TableHead>Skills</TableHead>
+                    <TableHead className="w-[160px]">Image</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {journeyEntries.map((entry) => (
                     <TableRow key={entry.id}>
-                      <TableCell className="font-medium">{entry.display_order}</TableCell>
+                      <TableCell className="font-mono p-6">{entry.display_order}</TableCell>
+                      <TableCell>{entry.year}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{entry.title}</div>
+                        <div className="max-w-md text-sm text-muted-foreground line-clamp-2">{entry.description}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-xs flex flex-wrap gap-1">
+                          {entry.skills.slice(0, 3).map((skill, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                          {entry.skills.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{entry.skills.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="relative w-28 h-16 rounded-md overflow-hidden border bg-muted">
                           {entry.journey_images && entry.journey_images.length > 0 ? (
@@ -489,25 +455,6 @@ export default function AdminJourneyPage() {
                             <div className="flex items-center justify-center h-full">
                               <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                             </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{entry.title}</div>
-                        <div className="text-sm text-muted-foreground line-clamp-1">{entry.description}</div>
-                      </TableCell>
-                      <TableCell>{entry.year}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {entry.skills.slice(0, 3).map((skill, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                          {entry.skills.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{entry.skills.length - 3} more
-                            </Badge>
                           )}
                         </div>
                       </TableCell>
@@ -626,7 +573,7 @@ export default function AdminJourneyPage() {
           setIsDialogOpen(open)
           if (!open) resetForm()
         }}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{currentId ? "Edit Journey Entry" : "Create Journey Entry"}</DialogTitle>
             </DialogHeader>
@@ -650,15 +597,34 @@ export default function AdminJourneyPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="year">Year *</Label>
+                  <Label htmlFor="year">Year *</Label>
+                  <Input
+                    id="year"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    placeholder="e.g., 2010"
+                    required
+                  />
+                </div>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="subtitle">Subtitle</Label>
                     <Input
-                      id="year"
-                      value={year}
-                      onChange={(e) => setYear(e.target.value)}
-                      placeholder="e.g., 2010"
-                      required
+                      id="subtitle"
+                      value={subtitle}
+                      onChange={(e) => setSubtitle(e.target.value)}
+                      placeholder="e.g., A brief subtitle or role"
                     />
                   </div>
+                <div className="space-y-2">
+                  <Label htmlFor="year">Year *</Label>
+                  <Input
+                    id="year"
+                    value={year}
+                    onChange={(e) => setYear(e.target.value)}
+                    placeholder="e.g., 2010"
+                    required
+                  />
                 </div>
 
                 <div className="space-y-2">

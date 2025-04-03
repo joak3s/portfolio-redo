@@ -1,6 +1,7 @@
 // Legacy type for compatibility with old code (if needed)
 export interface Milestone {
   title: string
+  subtitle?: string
   year: string
   description: string
   skills: string[]
@@ -13,6 +14,7 @@ export interface Milestone {
 export interface JourneyMilestone {
   id: string
   title: string
+  subtitle?: string
   year: string
   description: string
   skills: string[]
@@ -38,6 +40,7 @@ export interface JourneyImage {
 export interface JourneyEntry {
   id: string
   title: string
+  subtitle?: string
   year: string
   description: string
   skills: string[]
@@ -58,6 +61,7 @@ export interface JourneyImageCreate {
 
 export interface JourneyEntryCreate {
   title: string
+  subtitle?: string
   year: string
   description: string
   skills: string[]

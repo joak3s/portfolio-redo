@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { NextResponse } from "next/server"
 
-// GET a specific journey milestone
+// GET a specific journey entry
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -11,37 +11,56 @@ export async function GET(
     
     if (!id) {
       return NextResponse.json(
-        { error: "Milestone ID is required" },
+        { error: "Journey ID is required" },
         { status: 400 }
       )
     }
     
     const supabase = await createServerSupabaseClient()
     
-    const { data, error } = await supabase
-      .from("journey_milestones")
+    // Fetch the journey entry
+    const { data: journeyData, error: journeyError } = await supabase
+      .from("journey")
       .select("*")
       .eq("id", id)
       .single()
     
-    if (error) {
-      console.error(`Error fetching journey milestone ${id}:`, error)
+    if (journeyError) {
+      console.error(`Error fetching journey entry ${id}:`, journeyError)
       return NextResponse.json(
-        { error: "Failed to fetch journey milestone" },
+        { error: "Failed to fetch journey entry" },
         { status: 500 }
       )
     }
     
-    if (!data) {
+    if (!journeyData) {
       return NextResponse.json(
-        { error: "Journey milestone not found" },
+        { error: "Journey entry not found" },
         { status: 404 }
       )
     }
     
-    return NextResponse.json(data)
+    // Fetch images for this journey entry
+    const { data: imagesData, error: imagesError } = await supabase
+      .from("journey_images")
+      .select("*")
+      .eq("journey_id", id)
+      .order("order_index", { ascending: true })
+    
+    if (imagesError) {
+      console.error(`Error fetching images for journey ${id}:`, imagesError)
+      // Continue without images rather than failing completely
+    }
+    
+    // Combine the journey entry with its images
+    const completeEntry = {
+      ...journeyData,
+      journey_images: imagesData || []
+    }
+    
+    return NextResponse.json(completeEntry)
   } catch (error) {
-    console.error("Unexpected error fetching journey milestone:", error)
+    console.error("Unexpected error fetching journey entry:", error)
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }
@@ -49,7 +68,7 @@ export async function GET(
   }
 }
 
-// Update a journey milestone (admin only)
+// Update a journey entry (admin only)
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
@@ -59,7 +78,7 @@ export async function PATCH(
     
     if (!id) {
       return NextResponse.json(
-        { error: "Milestone ID is required" },
+        { error: "Journey ID is required" },
         { status: 400 }
       )
     }
@@ -76,25 +95,83 @@ export async function PATCH(
     }
     
     const json = await request.json()
+    const { title, subtitle, year, description, skills, icon, color, display_order, image_url } = json
     
-    const { data, error } = await supabase
-      .from("journey_milestones")
-      .update(json)
+    // Update journey entry
+    const updateData: any = {}
+    if (title !== undefined) updateData.title = title
+    if (subtitle !== undefined) updateData.subtitle = subtitle
+    if (year !== undefined) updateData.year = year
+    if (description !== undefined) updateData.description = description
+    if (skills !== undefined) updateData.skills = skills
+    if (icon !== undefined) updateData.icon = icon
+    if (color !== undefined) updateData.color = color
+    if (display_order !== undefined) updateData.display_order = display_order
+    
+    const { data: updatedData, error: updateError } = await supabase
+      .from("journey")
+      .update(updateData)
       .eq("id", id)
       .select()
       .single()
     
-    if (error) {
-      console.error(`Error updating journey milestone ${id}:`, error)
+    if (updateError) {
+      console.error(`Error updating journey entry ${id}:`, updateError)
       return NextResponse.json(
-        { error: "Failed to update journey milestone" },
+        { error: "Failed to update journey entry" },
         { status: 500 }
       )
     }
     
-    return NextResponse.json(data)
+    // If we have a new image URL, add it to the journey
+    if (image_url) {
+      // First get the current highest order_index
+      const { data: existingImages, error: fetchError } = await supabase
+        .from("journey_images")
+        .select("order_index")
+        .eq("journey_id", id)
+        .order("order_index", { ascending: false })
+        .limit(1)
+      
+      const nextOrderIndex = existingImages && existingImages.length > 0 
+        ? existingImages[0].order_index + 1 
+        : 1
+      
+      // Add the new image
+      const { error: imageError } = await supabase.rpc(
+        'add_journey_image',
+        {
+          p_journey_id: id,
+          p_url: image_url,
+          p_order_index: nextOrderIndex
+        }
+      )
+      
+      if (imageError) {
+        console.error(`Error adding image to journey ${id}:`, imageError)
+        // Continue without image rather than failing completely
+      }
+    }
+    
+    // Fetch the updated entry with its images
+    const { data: completeEntry, error: fetchError } = await supabase
+      .from("journey")
+      .select(`
+        *,
+        journey_images (*)
+      `)
+      .eq("id", id)
+      .single()
+      
+    if (fetchError) {
+      console.error(`Error fetching complete updated journey ${id}:`, fetchError)
+      // Return the basic updated data if we can't fetch the complete entry
+      return NextResponse.json(updatedData)
+    }
+    
+    return NextResponse.json(completeEntry)
   } catch (error) {
-    console.error("Unexpected error updating journey milestone:", error)
+    console.error("Unexpected error updating journey entry:", error)
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }
@@ -102,7 +179,7 @@ export async function PATCH(
   }
 }
 
-// Delete a journey milestone (admin only)
+// Delete a journey entry (admin only)
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
@@ -112,7 +189,7 @@ export async function DELETE(
     
     if (!id) {
       return NextResponse.json(
-        { error: "Milestone ID is required" },
+        { error: "Journey ID is required" },
         { status: 400 }
       )
     }
@@ -128,22 +205,34 @@ export async function DELETE(
       )
     }
     
-    const { error } = await supabase
-      .from("journey_milestones")
+    // First delete any associated images
+    const { error: imagesError } = await supabase
+      .from("journey_images")
+      .delete()
+      .eq("journey_id", id)
+    
+    if (imagesError) {
+      console.error(`Error deleting images for journey ${id}:`, imagesError)
+      // Continue with deletion even if images deletion fails
+    }
+    
+    // Then delete the journey entry
+    const { error: deleteError } = await supabase
+      .from("journey")
       .delete()
       .eq("id", id)
     
-    if (error) {
-      console.error(`Error deleting journey milestone ${id}:`, error)
+    if (deleteError) {
+      console.error(`Error deleting journey entry ${id}:`, deleteError)
       return NextResponse.json(
-        { error: "Failed to delete journey milestone" },
+        { error: "Failed to delete journey entry" },
         { status: 500 }
       )
     }
     
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Unexpected error deleting journey milestone:", error)
+    console.error("Unexpected error deleting journey entry:", error)
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }
