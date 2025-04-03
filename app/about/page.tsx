@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Download, Mail, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Testimonials } from '@/components/testimonials-grid'
-import TimelineMilestone from '@/components/journey/timeline-milestone'
+import JourneyTimeline from '@/components/journey/journey-timeline'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useJourneyMilestones } from '@/hooks/use-journey'
 
@@ -279,7 +279,7 @@ export default function AboutPage() {
               {/* Current milestone content with AnimatePresence */}
               <div 
                 ref={timelineRef} 
-                className="relative overflow-hidden" 
+                className="relative overflow-hidden max-w-4xl mx-auto" 
                 style={{ minHeight: '400px' }}
               >
                 <AnimatePresence mode="wait" custom={direction}>
@@ -314,7 +314,7 @@ export default function AboutPage() {
                     }}
                     className="timeline-milestone w-full"
                   >
-                    <TimelineMilestone 
+                    <JourneyTimeline 
                       milestone={milestones[activeIndex]} 
                       onNext={handleNext}
                       onPrevious={handlePrevious}
@@ -325,17 +325,6 @@ export default function AboutPage() {
                     />
                   </motion.div>
                 </AnimatePresence>
-              </div>
-
-              {/* Year indicators */}
-              <div className="flex justify-between text-sm text-muted-foreground mt-8 max-w-xl mx-auto">
-                {milestones.length > 0 && (
-                  <>
-                    <span>{milestones[0].year}</span>
-                    {milestones.length > 2 && <span>{milestones[Math.floor(milestones.length / 2)].year}</span>}
-                    <span>{milestones[milestones.length - 1].year}</span>
-                  </>
-                )}
               </div>
             </div>
           )}
