@@ -4,12 +4,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Briefcase, Code, Layout, MessageSquare, ImageIcon, Hammer, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Milestone } from "@/lib/types/journey"
+import type { Milestone, JourneyEntry } from "@/lib/types/journey"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 
 interface TimelineMilestoneProps {
-  milestone: Milestone
+  milestone: Milestone | JourneyEntry
   onNext?: () => void
   onPrevious?: () => void
   hasNext?: boolean
@@ -45,6 +45,22 @@ export default function TimelineMilestone({
         return <Briefcase className="h-6 w-6" />
     }
   }
+  
+  // Determine the image URL based on milestone type
+  const getImageUrl = () => {
+    // If it's the new JourneyEntry type with journey_images
+    if ('journey_images' in milestone && milestone.journey_images && milestone.journey_images.length > 0) {
+      return milestone.journey_images[0].url;
+    }
+    
+    // For legacy Milestone type with direct image property
+    if ('image' in milestone && milestone.image) {
+      return milestone.image;
+    }
+    
+    // Default fallback
+    return "/placeholder.svg";
+  };
 
   return (
     <div className="relative">
@@ -55,7 +71,7 @@ export default function TimelineMilestone({
       >
         <div className="relative aspect-video md:aspect-[2.4/1] overflow-hidden">
           <Image 
-            src={milestone.image || "/placeholder.svg"} 
+            src={getImageUrl()} 
             alt={`Illustration for ${milestone.title}`} 
             fill 
             className="object-cover transition-transform hover:scale-105 duration-500" 
@@ -93,6 +109,25 @@ export default function TimelineMilestone({
               </Badge>
             ))}
           </div>
+          
+          {/* Additional Images (for new JourneyEntry type) */}
+          {'journey_images' in milestone && milestone.journey_images && milestone.journey_images.length > 1 && (
+            <div className="mt-6 mb-4">
+              <p className="text-sm font-medium mb-2">Additional images:</p>
+              <div className="grid grid-cols-3 gap-2">
+                {milestone.journey_images.slice(1).map((image, index) => (
+                  <div key={index} className="relative aspect-video rounded-md overflow-hidden border">
+                    <Image
+                      src={image.url}
+                      alt={`Additional image ${index + 1}`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           
           {/* Navigation Controls */}
           {(onNext || onPrevious) && (

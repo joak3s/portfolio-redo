@@ -1,6 +1,7 @@
 -- Drop the existing function
 DROP FUNCTION IF EXISTS hybrid_search;
 
+/*
 -- Create improved hybrid search function with both vector and text search
 CREATE OR REPLACE FUNCTION hybrid_search(
   query_embedding VECTOR(1536),
@@ -16,15 +17,15 @@ CREATE OR REPLACE FUNCTION hybrid_search(
 BEGIN
   RETURN QUERY
   WITH vector_matches AS (
-    SELECT 
+    SELECT
       e.content_id,
       e.content_type,
       1 - (e.embedding <=> query_embedding) as similarity
-    FROM 
+    FROM
       embeddings e
-    WHERE 
+    WHERE
       1 - (e.embedding <=> query_embedding) > match_threshold
-    ORDER BY 
+    ORDER BY
       similarity DESC
     LIMIT match_count
   ),
@@ -40,9 +41,9 @@ BEGIN
       g.content ILIKE '%' || query_text || '%'
       OR g.title ILIKE '%' || query_text || '%'
       OR g.category ILIKE '%' || query_text || '%'
-    
+      
     UNION ALL
-    
+      
     -- Search projects using text search
     SELECT
       p.id as content_id,
@@ -54,7 +55,7 @@ BEGIN
       p.title ILIKE '%' || query_text || '%'
       OR p.description ILIKE '%' || query_text || '%'
       OR p.slug ILIKE '%' || query_text || '%'
-    
+      
     LIMIT match_count
   ),
   -- Combine vector and text matches
@@ -76,7 +77,7 @@ BEGIN
   ),
   content_data AS (
     -- Get project data
-    SELECT 
+    SELECT
       p.id as content_id,
       'project' as content_type,
       jsonb_build_object(
@@ -85,11 +86,11 @@ BEGIN
         'summary', p.description,
         'keywords', ARRAY[]::TEXT[]
       ) as content
-    FROM 
+    FROM
       projects p
     UNION ALL
     -- Get general info data
-    SELECT 
+    SELECT
       g.id as content_id,
       'general_info' as content_type,
       jsonb_build_object(
@@ -97,20 +98,21 @@ BEGIN
         'content', g.content,
         'category', g.category
       ) as content
-    FROM 
+    FROM
       general_info g
   )
-  SELECT 
+  SELECT
     rm.content_id,
     rm.content_type,
     rm.similarity,
     cd.content
-  FROM 
+  FROM
     ranked_matches rm
-  JOIN 
+  JOIN
     content_data cd ON rm.content_id = cd.content_id AND rm.content_type = cd.content_type
-  ORDER BY 
+  ORDER BY
     rm.similarity DESC
   LIMIT match_count;
 END;
-$$; 
+$$
+*/ 

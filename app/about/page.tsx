@@ -100,7 +100,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="container sm:pt-8 md:pt-32 pb-12">
+      <section className="container sm:pt-8 md:pt-24 pb-12">
         <div className="max-w-4xl mx-auto">
           <div className="flex flex-col md:flex-row gap-8 items-center mb-10">
             <motion.div
