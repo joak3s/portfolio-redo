@@ -78,13 +78,13 @@ export default function AdminPage() {
         .order('created_at', { ascending: false })
 
       if (fetchError) throw fetchError
-      
+
       // Ensure status is properly typed
       const typedProjects = (data || []).map((project: any) => ({
         ...project,
         status: (project.status || 'draft') as 'draft' | 'published'
       })) as Project[]
-      
+
       setProjects(typedProjects)
     } catch (error) {
       console.error("Error fetching projects:", error)
@@ -204,10 +204,10 @@ export default function AdminPage() {
     try {
       setIsSaving(true)
       const isUpdate = 'id' in selectedProject
-      
+
       // Create a sanitized copy of the project with cleaned data
       const sanitizedProject = { ...selectedProject };
-      
+
       // Ensure images exists and is valid
       sanitizedProject.images = sanitizedProject.images || [];
       sanitizedProject.images = sanitizedProject.images
@@ -217,36 +217,36 @@ export default function AdminPage() {
           alt_text: img.alt_text || '',
           order_index: img.order_index !== undefined ? img.order_index : index
         }));
-      
+
       // Ensure tool_ids exists and is valid
       sanitizedProject.tool_ids = sanitizedProject.tool_ids || [];
       sanitizedProject.tool_ids = sanitizedProject.tool_ids
         .filter(id => id && typeof id === 'string');
-      
+
       // Ensure tag_ids exists and is valid
       sanitizedProject.tag_ids = sanitizedProject.tag_ids || [];
       sanitizedProject.tag_ids = sanitizedProject.tag_ids
         .filter(id => id && typeof id === 'string');
-      
+
       // Handle featured order uniqueness
       if ((sanitizedProject.featured || 0) > 0) {
         // Find all projects that need to be updated due to featured order conflict
         const featuredValue = sanitizedProject.featured || 0;
-        const projectsToUpdate = projects.filter(p => 
-          (p.featured || 0) === featuredValue && 
+        const projectsToUpdate = projects.filter(p =>
+          (p.featured || 0) === featuredValue &&
           (!isUpdate || p.id !== (sanitizedProject as ProjectUpdate).id)
         )
-        
+
         // If we have conflicts, resolve them by updating other projects
         if (projectsToUpdate.length > 0) {
           console.log(`Resolving featured order conflicts for order: ${featuredValue}`)
-          
+
           // Get all featured values currently in use (excluding the current project if it's an update)
           const featuredValues = projects
             .filter(p => (p.featured || 0) > 0 && (!isUpdate || p.id !== (sanitizedProject as ProjectUpdate).id))
             .map(p => p.featured || 0)
             .sort((a, b) => (a || 0) - (b || 0))
-          
+
           // For each project with the same featured value, we need to shift it
           for (const conflictProject of projectsToUpdate) {
             // Find the next available featured value
@@ -254,9 +254,9 @@ export default function AdminPage() {
             while (featuredValues.includes(newFeaturedValue)) {
               newFeaturedValue++
             }
-            
+
             console.log(`Updating project ${conflictProject.id} featured from ${conflictProject.featured} to ${newFeaturedValue}`)
-            
+
             // Update the project in the database
             await fetch(`/api/admin/projects?id=${conflictProject.id}`, {
               method: 'PUT',
@@ -266,21 +266,21 @@ export default function AdminPage() {
                 featured: newFeaturedValue
               })
             })
-            
+
             // Add this value to our used values
             featuredValues.push(newFeaturedValue)
           }
         }
       }
-      
+
       console.log(`${isUpdate ? 'Updating' : 'Creating'} project with ${sanitizedProject.images?.length || 0} images`);
-      
+
       let response;
-      
+
       if (isUpdate) {
         // Get the project ID for update (TypeScript safety)
         const projectId = (sanitizedProject as ProjectUpdate).id;
-        
+
         // Use the API route for updates instead of direct Supabase client
         console.log(`Updating project ${projectId}`);
         response = await fetch(`/api/admin/projects?id=${projectId}`, {
@@ -297,14 +297,14 @@ export default function AdminPage() {
           body: JSON.stringify(sanitizedProject)
         })
       }
-      
+
       // Check if the response is HTML instead of JSON (error page)
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('text/html')) {
         console.error('Received HTML response instead of JSON');
         throw new Error('Server error: The API returned an HTML error page');
       }
-      
+
       if (!response.ok) {
         // Try to parse error response
         let errorData;
@@ -314,12 +314,12 @@ export default function AdminPage() {
           console.error('Error parsing error response:', parseError);
           throw new Error(`Server error (${response.status}): Could not parse error details`);
         }
-        
+
         const errorMessage = errorData?.error || errorData?.message || 'Unknown server error';
         const errorDetails = errorData?.details ? `: ${errorData.details}` : '';
         throw new Error(`${errorMessage}${errorDetails}`);
       }
-      
+
       // Get the success response
       const data = await response.json();
       console.log('Save successful:', data);
@@ -376,7 +376,7 @@ export default function AdminPage() {
   const handleToggleStatus = async (project: Project) => {
     try {
       const newStatus = project.status === 'published' ? 'draft' : 'published'
-      
+
       const response = await fetch(`/api/admin/projects?id=${project.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -397,7 +397,7 @@ export default function AdminPage() {
       })
 
       // Update project status locally to avoid refetching all projects
-      setProjects(projects.map(p => 
+      setProjects(projects.map(p =>
         p.id === project.id ? { ...p, status: newStatus } : p
       ))
     } catch (error) {
@@ -415,7 +415,7 @@ export default function AdminPage() {
     if (formErrors[field]) {
       setFormErrors({ ...formErrors, [field]: "" })
     }
-    
+
     // Special handling for featured order to ensure uniqueness
     if (field === "featured" && value > 0) {
       setSelectedProject({ ...selectedProject, [field]: value })
@@ -427,22 +427,22 @@ export default function AdminPage() {
   // New function to handle featured order changes with uniqueness check
   const handleFeaturedOrderChange = (value: number) => {
     if (!selectedProject) return
-    
+
     // If setting to 0 (not featured), just update normally
     if (value === 0) {
       handleInputChange("featured", 0)
       return
     }
-    
+
     // Check if another project already has this featured order
-    const projectWithSameOrder = projects.find(p => 
-      p.featured === value && 
+    const projectWithSameOrder = projects.find(p =>
+      p.featured === value &&
       (!("id" in selectedProject) || p.id !== selectedProject.id)
     )
-    
+
     // Update the selected project with new featured order
     handleInputChange("featured", value)
-    
+
     // Show toast notification if we're going to reorder
     if (projectWithSameOrder) {
       toast({
@@ -466,7 +466,7 @@ export default function AdminPage() {
     try {
       // Skip explicit auth check - middleware already protects admin routes
       // If we got this far, the user must be authenticated
-      
+
       if (!file) {
         throw new Error('No file selected')
       }
@@ -504,14 +504,14 @@ export default function AdminPage() {
 
       if (uploadError) {
         console.error('Storage upload error details:', uploadError)
-        
+
         // Check for specific auth errors
         if (uploadError.message?.includes('auth') || uploadError.message?.includes('Authentication')) {
           // Redirect to login if auth failed
           router.push('/auth/login?returnUrl=/admin')
           throw new Error('Your session has expired. Please login again.')
         }
-        
+
         throw new Error(`Failed to upload image: ${uploadError.message || 'Unknown error'}`)
       }
 
@@ -591,7 +591,7 @@ export default function AdminPage() {
   const handleImageDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     const file = e.dataTransfer.files?.[0]
     if (file) {
       await handleAddImageToProject(file)
@@ -612,23 +612,23 @@ export default function AdminPage() {
     try {
       // First, check if the tool already exists
       let existingTool = tools.find(t => t.name.toLowerCase() === toolName.toLowerCase())
-      
+
       if (!existingTool) {
         // If tool doesn't exist, create it with a slug
         const slug = toolName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
         const response = await fetch('/api/admin/tools', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             name: toolName,
             slug: slug
           })
         })
-        
+
         if (!response.ok) {
           throw new Error(`Failed to create tool: ${toolName}`)
         }
-        
+
         const newTool = await response.json()
         setTools(prev => [...prev, newTool as Tool])
         existingTool = newTool
@@ -691,9 +691,12 @@ export default function AdminPage() {
     <div className="container py-8 md:py-12">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold">Project Management</h1>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">Project Management</h1>
+            <p className="text-muted-foreground">Manage your portfolio projects.</p>
+          </div>
           <div className="flex flex-col md:flex-row gap-2">
-          <Button variant="outline" className="w-full md:w-auto" asChild>
+            <Button variant="outline" className="w-full md:w-auto" asChild>
               <Link href="/admin/journey">
                 <SquareChartGantt className="mr-2 h-4 w-4" /> Journey
               </Link>
@@ -769,12 +772,12 @@ export default function AdminPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge 
+                        <Badge
                           variant="outline"
                           className={cn(
                             "capitalize cursor-pointer border",
-                            project.status === 'published' 
-                              ? "border-green-500/50 text-green-700 dark:border-green-400/50 dark:text-green-400 hover:bg-green-500/10" 
+                            project.status === 'published'
+                              ? "border-green-500/50 text-green-700 dark:border-green-400/50 dark:text-green-400 hover:bg-green-500/10"
                               : "border-muted-foreground/20 hover:bg-muted/50"
                           )}
                           onClick={() => handleToggleStatus(project)}
@@ -784,9 +787,9 @@ export default function AdminPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
+                          <Button
+                            variant="outline"
+                            size="icon"
                             onClick={() => handleEditProject(project)}
                             className="hover:bg-muted"
                           >
@@ -838,12 +841,12 @@ export default function AdminPage() {
                                   #{project.featured}
                                 </Badge>
                               )}
-                              <Badge 
+                              <Badge
                                 variant="outline"
                                 className={cn(
                                   "capitalize cursor-pointer border",
-                                  project.status === 'published' 
-                                    ? "border-green-500/50 text-green-700 dark:border-green-400/50 dark:text-green-400 bg-green-500/10" 
+                                  project.status === 'published'
+                                    ? "border-green-500/50 text-green-700 dark:border-green-400/50 dark:text-green-400 bg-green-500/10"
                                     : "border-muted-foreground/20 bg-muted/30"
                                 )}
                                 onClick={() => handleToggleStatus(project)}
@@ -872,12 +875,12 @@ export default function AdminPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleToggleStatus(project)}
-                              className={project.status === 'published' 
+                              className={project.status === 'published'
                                 ? "text-amber-600 focus:text-amber-600 hover:bg-amber-500/10"
                                 : "text-green-600 focus:text-green-600 hover:bg-green-500/10"
                               }
                             >
-                              {project.status === 'published' 
+                              {project.status === 'published'
                                 ? <><X className="mr-2 h-4 w-4" />Unpublish</>
                                 : <><Check className="mr-2 h-4 w-4" />Publish</>
                               }
@@ -987,102 +990,102 @@ export default function AdminPage() {
                       )}
                     </div>
                     <div className="space-y-2">
-                          <Label htmlFor="tools">Tools</Label>
-                          <div className="space-y-4">
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  className="w-full justify-between"
-                                >
-                                  <span className="truncate">
-                                    Select or add tools...
-                                  </span>
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-full p-0">
-                                <Command>
-                                  <CommandInput placeholder="Search tools..." />
-                                  <CommandEmpty>
-                                    Press enter to add "{selectedProject?.tools?.map(tool => tool.name).join(", ") || ""}"
-                                  </CommandEmpty>
-                                  <CommandGroup>
-                                    {tools.map((tool) => (
-                                      <CommandItem
-                                        key={tool.id}
-                                        onSelect={() => handleToolsChange(tool.name)}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4",
-                                            selectedProject?.tool_ids?.includes(tool.id)
-                                              ? "opacity-100"
-                                              : "opacity-0"
-                                          )}
-                                        />
-                                        {tool.name}
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-
-                            {/* Display selected tools as badges */}
-                            <div className="flex flex-wrap gap-2">
-                              {selectedProject?.tools?.map((tool) => (
-                                <Badge
-                                  key={tool.id}
-                                  variant="secondary"
-                                  className="flex items-center gap-1"
-                                >
-                                  {tool.name}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-4 w-4 p-0 hover:bg-transparent"
-                                    onClick={() => handleRemoveTool(tool.id)}
+                      <Label htmlFor="tools">Tools</Label>
+                      <div className="space-y-4">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-full justify-between"
+                            >
+                              <span className="truncate">
+                                Select or add tools...
+                              </span>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0">
+                            <Command>
+                              <CommandInput placeholder="Search tools..." />
+                              <CommandEmpty>
+                                Press enter to add "{selectedProject?.tools?.map(tool => tool.name).join(", ") || ""}"
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {tools.map((tool) => (
+                                  <CommandItem
+                                    key={tool.id}
+                                    onSelect={() => handleToolsChange(tool.name)}
                                   >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground">Select existing tools or type to create new ones</p>
-                        </div>
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedProject?.tool_ids?.includes(tool.id)
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {tool.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="featured">Featured Order</Label>
-                          <Input
-                            id="featured"
-                            type="number"
-                            min={0}
-                            max={99}
-                            value={selectedProject.featured || 0}
-                            onChange={(e) => handleFeaturedOrderChange(parseInt(e.target.value) || 0)}
-                            placeholder="0"
-                          />
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <div className={(selectedProject.featured || 0) > 0 ? "text-amber-500 dark:text-amber-400" : ""}>
-                              {(selectedProject.featured || 0) > 0 ? "This project will appear in the featured section" : "0 = Not featured"}
-                            </div>
-                            {(selectedProject.featured || 0) > 0 && projects.some(p => 
-                              (p.featured || 0) === (selectedProject.featured || 0) && 
-                              (!("id" in selectedProject) || p.id !== selectedProject.id)
-                            ) && (
-                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800">
-                                Will reorder others
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Lower numbers appear first in featured sections. Each featured project must have a unique order number.
-                          </p>
+                        {/* Display selected tools as badges */}
+                        <div className="flex flex-wrap gap-2">
+                          {selectedProject?.tools?.map((tool) => (
+                            <Badge
+                              key={tool.id}
+                              variant="secondary"
+                              className="flex items-center gap-1"
+                            >
+                              {tool.name}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-4 p-0 hover:bg-transparent"
+                                onClick={() => handleRemoveTool(tool.id)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </Badge>
+                          ))}
                         </div>
-                        
+                      </div>
+                      <p className="text-xs text-muted-foreground">Select existing tools or type to create new ones</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="featured">Featured Order</Label>
+                      <Input
+                        id="featured"
+                        type="number"
+                        min={0}
+                        max={99}
+                        value={selectedProject.featured || 0}
+                        onChange={(e) => handleFeaturedOrderChange(parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className={(selectedProject.featured || 0) > 0 ? "text-amber-500 dark:text-amber-400" : ""}>
+                          {(selectedProject.featured || 0) > 0 ? "This project will appear in the featured section" : "0 = Not featured"}
+                        </div>
+                        {(selectedProject.featured || 0) > 0 && projects.some(p =>
+                          (p.featured || 0) === (selectedProject.featured || 0) &&
+                          (!("id" in selectedProject) || p.id !== selectedProject.id)
+                        ) && (
+                            <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+                              Will reorder others
+                            </Badge>
+                          )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Lower numbers appear first in featured sections. Each featured project must have a unique order number.
+                      </p>
+                    </div>
+
                     <div className="space-y-2">
                       <Label htmlFor="website_url">Website URL</Label>
                       <Input
@@ -1098,8 +1101,8 @@ export default function AdminPage() {
                         <div className="space-y-0.5">
                           <Label htmlFor="status">Publication Status</Label>
                           <p className="text-xs text-muted-foreground">
-                            {selectedProject?.status === 'published' 
-                              ? "Project is publicly visible on your portfolio" 
+                            {selectedProject?.status === 'published'
+                              ? "Project is publicly visible on your portfolio"
                               : "Project is saved but not publicly visible"}
                           </p>
                         </div>
@@ -1113,12 +1116,12 @@ export default function AdminPage() {
                               }
                             }}
                           />
-                          <Badge 
+                          <Badge
                             variant="outline"
                             className={cn(
                               "capitalize",
-                              selectedProject?.status === 'published' 
-                                ? "border-green-500/50 text-green-700 dark:text-green-400 bg-green-500/10" 
+                              selectedProject?.status === 'published'
+                                ? "border-green-500/50 text-green-700 dark:text-green-400 bg-green-500/10"
                                 : "border-muted-foreground/20 bg-muted/30"
                             )}
                           >
@@ -1185,8 +1188,8 @@ export default function AdminPage() {
                           {(selectedProject?.images || []).length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {(selectedProject?.images || []).map((image, index) => (
-                                <div 
-                                  key={index} 
+                                <div
+                                  key={index}
                                   className="group relative aspect-video bg-muted rounded-lg overflow-hidden border"
                                 >
                                   <img
@@ -1209,7 +1212,7 @@ export default function AdminPage() {
                                       <Trash2 className="h-4 w-4 mr-1" />
                                       Remove
                                     </Button>
-                                    
+
                                     <div className="flex gap-1">
                                       <Button
                                         variant="outline"
@@ -1300,7 +1303,7 @@ export default function AdminPage() {
                               <span className="text-sm text-muted-foreground">Upload New Image</span>
                               <div className="h-px flex-1 bg-border" />
                             </div>
-                            
+
                             <div className="grid gap-4">
                               <div
                                 className={cn(
@@ -1343,10 +1346,10 @@ export default function AdminPage() {
                         {'id' in selectedProject && (
                           <div className="space-y-2">
                             <Label htmlFor="id">Project ID</Label>
-                            <Input 
-                              id="id" 
-                              value={selectedProject.id} 
-                              disabled 
+                            <Input
+                              id="id"
+                              value={selectedProject.id}
+                              disabled
                               className="bg-muted text-muted-foreground"
                             />
                           </div>

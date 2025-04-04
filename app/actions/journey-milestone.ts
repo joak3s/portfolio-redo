@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { type JourneyEntry, type JourneyEntryCreate, type JourneyEntryUpdate } from '@/lib/types/journey';
+import { revalidatePath } from 'next/cache';
 
 interface CreateJourneyInput {
   title: string;
@@ -14,6 +15,25 @@ interface CreateJourneyInput {
   color: string;
   display_order: number;
   image_url?: string;
+}
+
+/**
+ * Get a Supabase admin client with service role
+ */
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase credentials');
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  });
 }
 
 /**
@@ -32,17 +52,8 @@ export async function createJourneyEntry(
       hasImageUrl: !!data.image_url
     });
     
-    // Get Supabase credentials with service role for full permissions
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase credentials');
-      throw new Error('Missing Supabase credentials');
-    }
-    
-    // Create a client with the service role key
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Get admin Supabase client
+    const supabase = getSupabaseAdmin();
     
     // Validate required fields
     if (!data.title || !data.year || !data.description || 
@@ -60,19 +71,22 @@ export async function createJourneyEntry(
     
     // Create journey entry
     console.log('Creating journey entry in database');
-    const { data: journeyData, error: journeyError } = await supabase.rpc(
-      'create_journey',
-      {
-        p_title: data.title,
-        p_subtitle: data.subtitle || null,
-        p_year: data.year,
-        p_description: data.description,
-        p_skills: data.skills,
-        p_icon: data.icon,
-        p_color: data.color,
-        p_display_order: data.display_order
-      }
-    );
+
+    // Use a direct insert instead of RPC if causing issues
+    const { data: journeyData, error: journeyError } = await supabase
+      .from('journey')
+      .insert({
+        title: data.title,
+        subtitle: data.subtitle || null,
+        year: data.year,
+        description: data.description,
+        skills: data.skills,
+        icon: data.icon,
+        color: data.color,
+        display_order: data.display_order
+      })
+      .select('*')
+      .single();
     
     if (journeyError) {
       console.error('Error creating journey entry:', journeyError);
@@ -84,14 +98,15 @@ export async function createJourneyEntry(
     // If we have an image URL, associate it with the journey entry
     if (data.image_url) {
       console.log('Adding image to journey entry');
-      const { error: imageError } = await supabase.rpc(
-        'add_journey_image',
-        {
-          p_journey_id: journeyData.id,
-          p_url: data.image_url,
-          p_order_index: 1
-        }
-      );
+      
+      // Use direct insert instead of RPC
+      const { error: imageError } = await supabase
+        .from('journey_images')
+        .insert({
+          journey_id: journeyData.id,
+          url: data.image_url,
+          order_index: 1
+        });
       
       if (imageError) {
         console.error('Error adding journey image:', imageError);
@@ -100,6 +115,9 @@ export async function createJourneyEntry(
         console.log('Image added successfully to journey entry');
       }
     }
+    
+    // Revalidate the path
+    revalidatePath('/admin/journey');
     
     return {
       success: true,
@@ -125,17 +143,8 @@ export async function updateJourneyEntry(
   try {
     console.log('Updating journey entry with ID:', id);
     
-    // Get Supabase credentials with service role for full permissions
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase credentials');
-      throw new Error('Missing Supabase credentials');
-    }
-    
-    // Create a client with the service role key
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Get admin Supabase client
+    const supabase = getSupabaseAdmin();
     
     // First, update the journey entry
     console.log('Updating journey entry data');
@@ -197,6 +206,9 @@ export async function updateJourneyEntry(
       }
     }
     
+    // Revalidate the path
+    revalidatePath('/admin/journey');
+    
     return {
       success: true,
       data: journeyData
@@ -220,15 +232,8 @@ export async function deleteJourneyEntry(
   try {
     console.log('Deleting journey entry with ID:', id);
     
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase credentials');
-      throw new Error('Missing Supabase credentials');
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Get admin Supabase client
+    const supabase = getSupabaseAdmin();
     
     // First, delete any associated images from journey_images
     console.log('Deleting associated images');
@@ -253,13 +258,18 @@ export async function deleteJourneyEntry(
     
     if (deleteError) {
       console.error('Error deleting journey entry:', deleteError);
-      throw new Error(`Failed to delete journey entry: ${deleteError.message}`);
+      return {
+        success: false,
+        error: `Failed to delete journey entry: ${deleteError.message}`
+      };
     }
     
     console.log('Journey entry deleted successfully');
-    return {
-      success: true
-    };
+    
+    // Revalidate the path
+    revalidatePath('/admin/journey');
+    
+    return { success: true };
     
   } catch (error: any) {
     console.error('Server action error:', error);

@@ -24,6 +24,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils"
 import { z } from "zod"
 import Link from "next/link"
+import { deleteJourneyImage, updateJourneyImageOrder } from "@/app/actions/journey-images"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 export default function AdminJourneyPage() {
   const [journeyEntries, setJourneyEntries] = useState<JourneyEntry[]>([])
@@ -50,6 +52,14 @@ export default function AdminJourneyPage() {
   const router = useRouter()
   const { toast } = useToast()
   const isMobile = useMediaQuery("(max-width: 768px)")
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [reorderingImages, setReorderingImages] = useState<{id: string, url: string, order_index: number}[]>([])
+  const [isReordering, setIsReordering] = useState(false)
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   // Fetch journey entries
   useEffect(() => {
@@ -118,6 +128,9 @@ export default function AdminJourneyPage() {
       }))
 
       setJourneyEntries(entriesWithImages)
+      
+      // Reset retry count on success
+      setRetryCount(0)
     } catch (err) {
       console.error("Error fetching journey entries:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch journey entries")
@@ -223,14 +236,27 @@ export default function AdminJourneyPage() {
     setColor(entry.color)
     setDisplayOrder(entry.display_order)
 
-    // Set image preview if available
+    // Set image preview if available from the first image (main image)
     if (entry.journey_images && entry.journey_images.length > 0) {
       setImagePreview(entry.journey_images[0].url)
     } else {
       setImagePreview(null)
     }
 
+    // Reset any file upload state
+    setImageFile(null)
+    setImage("")
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+
     setIsDialogOpen(true)
+    // Default to media tab if the entry has multiple images
+    if (entry.journey_images && entry.journey_images.length > 1) {
+      setActiveTab("media")
+    } else {
+      setActiveTab("general")
+    }
   }
 
   /**
@@ -264,18 +290,18 @@ export default function AdminJourneyPage() {
           const formData = new FormData();
           formData.append('file', imageFile);
 
-          // Upload the file to get a URL
-          const imageResult = await fetch('/api/upload-image', {
+          // Upload the file using our server action instead of API route
+          const response = await fetch('/api/upload-image', {
             method: 'POST',
             body: formData,
           });
 
-          if (!imageResult.ok) {
-            const errorData = await imageResult.json();
+          if (!response.ok) {
+            const errorData = await response.json();
             throw new Error(errorData.error || 'Failed to upload image');
           }
 
-          const imageData = await imageResult.json();
+          const imageData = await response.json();
           uploadedImageUrl = imageData.url;
           console.log('Image uploaded successfully:', uploadedImageUrl);
         } catch (uploadError) {
@@ -293,7 +319,7 @@ export default function AdminJourneyPage() {
         }
       }
 
-      // Extract and format the data (now with uploadedImageUrl instead of imageFile)
+      // Extract and format the data
       const formData = {
         title,
         subtitle,
@@ -317,10 +343,10 @@ export default function AdminJourneyPage() {
       let result;
 
       if (currentId) {
-        // Update existing entry (no longer passing image_file)
+        // Update existing entry
         result = await updateJourneyEntry(currentId, formData);
       } else {
-        // Create new entry (no longer passing image_file)
+        // Create new entry
         result = await createJourneyEntry(formData);
       }
 
@@ -365,6 +391,221 @@ export default function AdminJourneyPage() {
       fileInputRef.current.value = ''
     }
   }
+
+  const handleDeleteJourneyImage = async (imageId: string) => {
+    setDeletingImageId(imageId)
+    setDeleteConfirmOpen(true)
+  }
+  
+  const confirmDeleteJourneyImage = async () => {
+    if (!deletingImageId) return
+    
+    try {
+      setIsDeleting(true)
+      setActionInProgress('delete-image')
+      
+      // Use direct Supabase client call instead of server action
+      const { error: deleteError } = await supabaseClient
+        .from('journey_images')
+        .delete()
+        .eq('id', deletingImageId)
+      
+      if (deleteError) {
+        console.error('Error deleting journey image:', deleteError)
+        throw new Error(deleteError.message)
+      }
+      
+      // After successful deletion, reorder remaining images
+      if (currentId) {
+        await reorderImagesAfterDeletion(currentId)
+      }
+      
+      toast({
+        title: "Image deleted",
+        description: "The image has been successfully deleted."
+      })
+      
+      // Refresh the journey entries to update the UI
+      await fetchJourneyEntries()
+      
+      // Close the confirmation dialog
+      setDeleteConfirmOpen(false)
+      
+    } catch (error) {
+      console.error("Error deleting journey image:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete journey image."
+      })
+    } finally {
+      setIsDeleting(false)
+      setDeletingImageId(null)
+      setActionInProgress(null)
+    }
+  }
+  
+  // Function to reorder images after deletion
+  const reorderImagesAfterDeletion = async (journeyId: string) => {
+    try {
+      // Get all remaining images for this journey entry, sorted by current order
+      const { data: images, error: fetchError } = await supabaseClient
+        .from('journey_images')
+        .select('id, order_index')
+        .eq('journey_id', journeyId)
+        .order('order_index', { ascending: true })
+      
+      if (fetchError) {
+        console.error('Error fetching images for reordering:', fetchError)
+        return
+      }
+      
+      // Update each image with a sequential order_index starting from 1
+      for (let i = 0; i < images.length; i++) {
+        const newIndex = i + 1
+        
+        // Only update if the order has changed
+        if (images[i].order_index !== newIndex) {
+          const { error } = await supabaseClient
+            .from('journey_images')
+            .update({ order_index: newIndex })
+            .eq('id', images[i].id)
+          
+          if (error) {
+            console.error(`Error reordering image ${images[i].id}:`, error)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in reorderImagesAfterDeletion:', error)
+    }
+  }
+  
+  const handleReorderImages = (currentEntry: JourneyEntry) => {
+    if (!currentEntry?.journey_images?.length) return
+    
+    // Initialize reorderingImages with the current images
+    setReorderingImages(
+      currentEntry.journey_images.map(img => ({
+        id: img.id,
+        url: img.url,
+        order_index: img.order_index
+      }))
+    )
+    setIsReordering(true)
+  }
+  
+  const moveImage = (fromIndex: number, toIndex: number) => {
+    setReorderingImages(prev => {
+      const newOrder = [...prev]
+      const [movedItem] = newOrder.splice(fromIndex, 1)
+      newOrder.splice(toIndex, 0, movedItem)
+      
+      // Update order_index for display purposes
+      return newOrder.map((img, idx) => ({
+        ...img,
+        order_index: idx + 1
+      }))
+    })
+  }
+  
+  const saveImageOrder = async () => {
+    if (!currentId || reorderingImages.length === 0) return
+    
+    try {
+      setActionInProgress('reorder-images')
+      
+      // Update each image with its new order directly using Supabase client
+      for (let i = 0; i < reorderingImages.length; i++) {
+        const { error } = await supabaseClient
+          .from('journey_images')
+          .update({ order_index: i + 1 })
+          .eq('id', reorderingImages[i].id)
+          .eq('journey_id', currentId)
+        
+        if (error) {
+          console.error(`Error updating image order for ${reorderingImages[i].id}:`, error)
+          throw new Error(`Error updating image order: ${error.message}`)
+        }
+      }
+      
+      toast({
+        title: "Order updated",
+        description: "Image order has been successfully updated."
+      })
+      
+      // Refresh the journey entries
+      await fetchJourneyEntries()
+      setIsReordering(false)
+      
+    } catch (error) {
+      console.error("Error updating image order:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update image order."
+      })
+    } finally {
+      setActionInProgress(null)
+    }
+  }
+
+  const renderExistingImages = () => {
+    const currentEntry = journeyEntries.find(entry => entry.id === currentId);
+    if (!currentEntry?.journey_images?.length) {
+      return <p className="text-sm text-muted-foreground">No images have been added to this entry yet.</p>;
+    }
+    
+    return (
+      <>
+        <div className="flex justify-between items-center mb-3">
+          <Label>Existing Images</Label>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleReorderImages(currentEntry)}
+              disabled={currentEntry.journey_images.length < 2}
+              className="text-xs"
+            >
+              <FolderKanban className="h-3.5 w-3.5 mr-1" />
+              Reorder
+            </Button>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {currentEntry.journey_images.map((img, idx) => (
+            <div 
+              key={img.id} 
+              className="relative group border rounded-md overflow-hidden aspect-video"
+            >
+              <Image
+                src={img.url}
+                alt={`Image ${idx + 1}`}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Badge variant={idx === 0 ? "default" : "outline"} className="absolute top-2 left-2">
+                  {idx === 0 ? "Main" : `#${idx + 1}`}
+                </Badge>
+                
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  className="opacity-90"
+                  onClick={() => handleDeleteJourneyImage(img.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -624,16 +865,6 @@ export default function AdminJourneyPage() {
                     placeholder="e.g., A brief subtitle or role"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="year">Year *</Label>
-                  <Input
-                    id="year"
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    placeholder="e.g., 2010"
-                    required
-                  />
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="description">Description *</Label>
@@ -852,6 +1083,13 @@ export default function AdminJourneyPage() {
                         <p className="text-xs text-muted-foreground">
                           Recommended size: 1200×800px. Max file size: 5MB.
                         </p>
+                        
+                        {currentId && (
+                          <p className="text-xs text-muted-foreground mt-4">
+                            Note: Adding a new image to an existing entry will keep previous images.
+                            The first uploaded image is used as the main thumbnail.
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -885,6 +1123,13 @@ export default function AdminJourneyPage() {
                     </div>
                   </div>
                 </div>
+                
+                {/* Display existing images when editing */}
+                {currentId && (
+                  <div className="mt-6 space-y-3">
+                    {renderExistingImages()}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
 
@@ -906,6 +1151,100 @@ export default function AdminJourneyPage() {
             </div>
           </DialogContent>
         </Dialog>
+        
+        {/* Image reordering dialog */}
+        <Dialog open={isReordering} onOpenChange={(open) => !open && setIsReordering(false)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Reorder Images</DialogTitle>
+            </DialogHeader>
+            
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                Drag and drop images to change their order. The first image will be used as the main thumbnail.
+              </p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {reorderingImages.map((img, idx) => (
+                  <div 
+                    key={img.id}
+                    className={cn(
+                      "relative border rounded-md overflow-hidden aspect-video cursor-move",
+                      idx === 0 && "ring-2 ring-primary"
+                    )}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', idx.toString())
+                      setTimeout(() => setIsDragging(true), 0)
+                    }}
+                    onDragEnd={() => setIsDragging(false)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      setIsDragging(false)
+                      const fromIndex = parseInt(e.dataTransfer.getData('text/plain'))
+                      const toIndex = idx
+                      if (fromIndex !== toIndex) {
+                        moveImage(fromIndex, toIndex)
+                      }
+                    }}
+                  >
+                    <Image
+                      src={img.url}
+                      alt={`Draggable image ${idx + 1}`}
+                      fill
+                      className={cn(
+                        "object-cover transition-opacity",
+                        isDragging && "opacity-50"
+                      )}
+                    />
+                    <Badge 
+                      variant={idx === 0 ? "default" : "outline"} 
+                      className="absolute top-2 left-2"
+                    >
+                      {idx === 0 ? "Main" : `#${idx + 1}`}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsReordering(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={saveImageOrder}>
+                Save Order
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Image</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this image? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDeleteJourneyImage}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                {isDeleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </motion.div>
     </div>
   )
