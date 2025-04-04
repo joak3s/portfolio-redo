@@ -1,0 +1,3 @@
+-- This is a placeholder migration file.
+-- The actual schema changes were already applied manually to the remote database.
+-- This file is used to mark the migration as applied in the migration tracking system.
