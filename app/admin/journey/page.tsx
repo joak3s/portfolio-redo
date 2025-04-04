@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Plus, Edit, Trash2, X, ArrowLeft, Upload, Image as ImageIcon, MoreHorizontal, Check } from "lucide-react"
+import { Loader2, Plus, Edit, Trash2, X, ArrowLeft, Upload, Image as ImageIcon, MoreHorizontal, Check, FolderKanban, PanelsTopLeft } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { supabaseClient } from "@/lib/supabase-browser"
 import { createJourneyEntry, updateJourneyEntry, deleteJourneyEntry } from "@/app/actions/journey-milestone"
@@ -23,6 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { z } from "zod"
+import Link from "next/link"
 
 export default function AdminJourneyPage() {
   const [journeyEntries, setJourneyEntries] = useState<JourneyEntry[]>([])
@@ -86,16 +87,16 @@ export default function AdminJourneyPage() {
 
       // Now fetch all images for these journey entries
       const journeyIds = data.map(entry => entry.id)
-      
+
       let journeyImages: Record<string, any[]> = {}
-      
+
       if (journeyIds.length > 0) {
         const { data: imagesData, error: imagesError } = await supabaseClient
           .from("journey_images")
           .select("*")
           .in("journey_id", journeyIds)
           .order("order_index", { ascending: true })
-        
+
         if (imagesError) {
           console.error("Error fetching journey images:", imagesError)
         } else {
@@ -109,13 +110,13 @@ export default function AdminJourneyPage() {
           }, {} as Record<string, any[]>)
         }
       }
-      
+
       // Combine journey entries with their images
       const entriesWithImages = data.map(entry => ({
         ...entry,
         journey_images: journeyImages[entry.id] || []
       }))
-      
+
       setJourneyEntries(entriesWithImages)
     } catch (err) {
       console.error("Error fetching journey entries:", err)
@@ -167,14 +168,14 @@ export default function AdminJourneyPage() {
     }
 
     setImageFile(file)
-    
+
     // Create preview
     const reader = new FileReader()
     reader.onloadend = () => {
       setImagePreview(reader.result as string)
     }
     reader.readAsDataURL(file)
-    
+
     // Clear the URL input when a file is selected
     setImage("")
   }
@@ -184,7 +185,7 @@ export default function AdminJourneyPage() {
 
     try {
       const result = await deleteJourneyEntry(id)
-      
+
       if (!result.success) {
         throw new Error(result.error || "Failed to delete journey entry")
       }
@@ -221,14 +222,14 @@ export default function AdminJourneyPage() {
     setIcon(entry.icon)
     setColor(entry.color)
     setDisplayOrder(entry.display_order)
-    
+
     // Set image preview if available
     if (entry.journey_images && entry.journey_images.length > 0) {
       setImagePreview(entry.journey_images[0].url)
     } else {
       setImagePreview(null)
     }
-    
+
     setIsDialogOpen(true)
   }
 
@@ -239,7 +240,7 @@ export default function AdminJourneyPage() {
     setIsSubmitting(true);
     try {
       console.log('Submitting journey form data');
-      
+
       // Validate required fields
       if (!title || !year || !description || skills.length === 0 || !icon || !color) {
         toast({
@@ -250,30 +251,30 @@ export default function AdminJourneyPage() {
         setIsSubmitting(false);
         return;
       }
-      
+
       // If we have a file, upload it first
       let uploadedImageUrl = image || '';
-      
+
       if (imageFile) {
         setIsUploading(true);
         console.log('Uploading image file first...');
-        
+
         try {
           // Create FormData for the file upload
           const formData = new FormData();
           formData.append('file', imageFile);
-          
+
           // Upload the file to get a URL
           const imageResult = await fetch('/api/upload-image', {
             method: 'POST',
             body: formData,
           });
-          
+
           if (!imageResult.ok) {
             const errorData = await imageResult.json();
             throw new Error(errorData.error || 'Failed to upload image');
           }
-          
+
           const imageData = await imageResult.json();
           uploadedImageUrl = imageData.url;
           console.log('Image uploaded successfully:', uploadedImageUrl);
@@ -291,7 +292,7 @@ export default function AdminJourneyPage() {
           setIsUploading(false);
         }
       }
-      
+
       // Extract and format the data (now with uploadedImageUrl instead of imageFile)
       const formData = {
         title,
@@ -304,7 +305,7 @@ export default function AdminJourneyPage() {
         display_order,
         image_url: uploadedImageUrl
       };
-      
+
       console.log('Processed form data:', {
         title: formData.title,
         subtitle: formData.subtitle,
@@ -312,9 +313,9 @@ export default function AdminJourneyPage() {
         hasSkills: formData.skills?.length > 0,
         hasImage: !!formData.image_url
       });
-      
+
       let result;
-      
+
       if (currentId) {
         // Update existing entry (no longer passing image_file)
         result = await updateJourneyEntry(currentId, formData);
@@ -322,16 +323,16 @@ export default function AdminJourneyPage() {
         // Create new entry (no longer passing image_file)
         result = await createJourneyEntry(formData);
       }
-      
+
       if (result.success) {
         toast({
           title: `Journey entry ${currentId ? 'updated' : 'created'} successfully`,
         });
-        
+
         // Reset form and close modal
         resetForm()
         setIsDialogOpen(false)
-        
+
         // Refresh journey list
         fetchJourneyEntries()
       } else {
@@ -382,10 +383,17 @@ export default function AdminJourneyPage() {
             <h1 className="text-3xl font-bold mb-2">Journey Timeline</h1>
             <p className="text-muted-foreground">Manage your professional journey entries.</p>
           </div>
+          <div className="flex flex-col md:flex-row gap-2">
+            <Button variant="outline" className="w-full md:w-auto" asChild>
+              <Link href="/admin">
+                <PanelsTopLeft className="mr-2 h-4 w-4" /> Projects
+              </Link>
+            </Button>
           <Button onClick={handleCreate} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Entry
-          </Button>
+              <Plus className="h-4 w-4" />
+              Add Entry
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -412,7 +420,7 @@ export default function AdminJourneyPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[60px]">Order</TableHead>
-                    <TableHead className="w-[80px]">Year</TableHead>
+                    <TableHead className="w-[100px]">Year</TableHead>
                     <TableHead>Title</TableHead>
                     <TableHead>Skills</TableHead>
                     <TableHead className="w-[160px]">Image</TableHead>
@@ -423,7 +431,7 @@ export default function AdminJourneyPage() {
                   {journeyEntries.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell className="font-mono p-6">{entry.display_order}</TableCell>
-                      <TableCell>{entry.year}</TableCell>
+                      <TableCell className="text-lg font-bold">{entry.year}</TableCell>
                       <TableCell>
                         <div className="font-medium">{entry.title}</div>
                         <div className="max-w-md text-sm text-muted-foreground line-clamp-2">{entry.description}</div>
@@ -516,7 +524,7 @@ export default function AdminJourneyPage() {
                           <DropdownMenuItem onClick={() => handleEdit(entry)}>
                             <Edit className="mr-2 h-4 w-4" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleDelete(entry.id)}
                             className="text-destructive focus:text-destructive"
                           >
@@ -577,13 +585,13 @@ export default function AdminJourneyPage() {
             <DialogHeader>
               <DialogTitle>{currentId ? "Edit Journey Entry" : "Create Journey Entry"}</DialogTitle>
             </DialogHeader>
-            
+
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid grid-cols-2 mb-4">
                 <TabsTrigger value="general">General</TabsTrigger>
                 <TabsTrigger value="media">Media</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="general" className="space-y-4 mt-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -597,25 +605,25 @@ export default function AdminJourneyPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                  <Label htmlFor="year">Year *</Label>
-                  <Input
-                    id="year"
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    placeholder="e.g., 2010"
-                    required
-                  />
-                </div>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="subtitle">Subtitle</Label>
+                    <Label htmlFor="year">Year *</Label>
                     <Input
-                      id="subtitle"
-                      value={subtitle}
-                      onChange={(e) => setSubtitle(e.target.value)}
-                      placeholder="e.g., A brief subtitle or role"
+                      id="year"
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      placeholder="e.g., 2010"
+                      required
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subtitle">Subtitle</Label>
+                  <Input
+                    id="subtitle"
+                    value={subtitle}
+                    onChange={(e) => setSubtitle(e.target.value)}
+                    placeholder="e.g., A brief subtitle or role"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="year">Year *</Label>
                   <Input
@@ -660,10 +668,10 @@ export default function AdminJourneyPage() {
                   <div className="mt-2 mb-3">
                     <Label className="text-xs mb-1">Suggested Skill Sets:</Label>
                     <div className="flex flex-wrap gap-2 mt-1">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
                         className="text-xs"
                         onClick={() => {
                           setSkills(["Adobe Illustrator", "Brand Design", "Typography", "Client Communication"])
@@ -671,10 +679,10 @@ export default function AdminJourneyPage() {
                       >
                         Design
                       </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
                         className="text-xs"
                         onClick={() => {
                           setSkills(["Cognitive Psychology", "Programming Fundamentals", "HCI Research", "Information Architecture"])
@@ -682,10 +690,10 @@ export default function AdminJourneyPage() {
                       >
                         Education
                       </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
                         className="text-xs"
                         onClick={() => {
                           setSkills(["Web Design", "HTML/CSS", "Motion Graphics", "Client Presentations"])
@@ -693,10 +701,10 @@ export default function AdminJourneyPage() {
                       >
                         Web Design
                       </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
                         className="text-xs"
                         onClick={() => {
                           setSkills(["React", "Next.js", "UI Design", "Database Architecture", "Full-Stack Development"])
@@ -779,11 +787,11 @@ export default function AdminJourneyPage() {
                   </p>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="media" className="space-y-4 mt-0">
                 <div className="space-y-2">
                   <Label htmlFor="image">Entry Image</Label>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       {/* Hidden file input */}
@@ -794,12 +802,12 @@ export default function AdminJourneyPage() {
                         className="hidden"
                         onChange={handleImageChange}
                       />
-                      
+
                       {/* Custom upload button */}
                       <div className="flex flex-col gap-4">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          variant="outline"
                           onClick={triggerFileInput}
                           className="w-full flex items-center gap-2"
                           disabled={isSubmitting || isUploading}
@@ -807,7 +815,7 @@ export default function AdminJourneyPage() {
                           <Upload className="h-4 w-4" />
                           Choose Image File
                         </Button>
-                        
+
                         {/* Alternative URL input */}
                         <div className="space-y-2">
                           <Label htmlFor="imageUrl" className="text-sm">Or enter image URL directly:</Label>
@@ -829,10 +837,10 @@ export default function AdminJourneyPage() {
                             disabled={isSubmitting || isUploading}
                           />
                         </div>
-                        
-                        <Button 
-                          type="button" 
-                          variant="outline" 
+
+                        <Button
+                          type="button"
+                          variant="outline"
                           onClick={removeImage}
                           className="w-full flex items-center gap-2 text-destructive"
                           disabled={isSubmitting || isUploading || (!imageFile && !image && !imagePreview)}
@@ -840,13 +848,13 @@ export default function AdminJourneyPage() {
                           <Trash2 className="h-4 w-4" />
                           Clear Image
                         </Button>
-                        
+
                         <p className="text-xs text-muted-foreground">
                           Recommended size: 1200×800px. Max file size: 5MB.
                         </p>
                       </div>
                     </div>
-                    
+
                     {/* Preview area */}
                     <div className="relative border rounded-md overflow-hidden h-[200px] bg-muted/30 flex items-center justify-center">
                       {imagePreview || image ? (
@@ -879,16 +887,16 @@ export default function AdminJourneyPage() {
                 </div>
               </TabsContent>
             </Tabs>
-            
+
             <div className="flex justify-end gap-2 pt-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setIsDialogOpen(false)}
                 disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting || isUploading}
               >

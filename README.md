@@ -155,98 +155,90 @@ The project uses Supabase for database, storage, and authentication:
 - `projects_with_cover_images` - Projects with their cover images
 - `complete_projects` - Comprehensive project data with relations
 
-## Using Supabase CLI
+## Supabase Configuration
 
-The project leverages Supabase CLI for database management:
+This project uses Supabase for authentication, database, and storage. By default, the application connects to the remote Supabase instance in production, but a local development instance can be used for testing database changes.
 
-### Installation & Setup
+### Switching Between Local and Remote Supabase
 
-```bash
-# Install Supabase CLI via Homebrew
-brew install supabase/tap/supabase
+The project is set up to use the remote Supabase instance by default. To switch between remote and local instances:
 
-# Add to your PATH if needed
-export PATH="/opt/homebrew/bin:$PATH"
+1. **Using Remote Supabase (Default)**
+   - The default configuration in `.env.development` points to the remote instance
+   - Ensure remote instance credentials are uncommented in `.env.development`
 
-# Start local Supabase instance
-supabase start
-```
+2. **Using Local Supabase (For Development)**
+   - Start the local Supabase instance: `npx supabase start`
+   - Edit `.env.development` to comment out remote credentials and uncomment local credentials
+   - Restart your Next.js development server
 
-### Managing Migrations
+### Managing Database Changes
 
-```bash
-# Create a new migration
-supabase migration new migration_name
+When making schema changes:
 
-# Apply migrations to local database
-supabase db reset
+1. **Pull Latest Remote Schema**
+   ```bash
+   npx supabase db pull
+   ```
 
-# Push migrations to remote
-supabase db push
+2. **Create a New Migration**
+   ```bash
+   npx supabase migration new my_change_name
+   ```
 
-# Diff between local and remote
-supabase db diff --use-migra --linked
-```
+3. **Edit the Migration File**
+   Edit the generated file in `supabase/migrations/` to include your changes.
 
-### Working with Remote Database
+4. **Push Changes to Remote**
+   ```bash
+   npx supabase db push
+   ```
 
-```bash
-# Get remote schema changes
-supabase db pull
+5. **Check Migration Status**
+   ```bash
+   npx supabase migration list
+   ```
 
-# Get tables from the remote database
-supabase db remote tables 
+### Troubleshooting
 
-# Backup remote database
-supabase db dump --linked -f backup.sql
-```
+If you encounter errors with migrations:
 
-### Troubleshooting Migrations
+1. **Repair Migration History**
+   ```bash
+   npx supabase migration repair --status applied MIGRATION_ID
+   ```
 
-```bash
-# Repair migration history
-supabase migration repair --status applied migration_id
+2. **Sync Local and Remote**
+   ```bash
+   npx supabase db reset
+   npx supabase db pull
+   ```
 
-# Show migration status
-supabase migration list
-```
+## Development
 
-### Best Practices
+### Getting Started
 
-1. Always backup before pushing migrations
-2. Use idempotent SQL (`IF NOT EXISTS`, etc.)
-3. Test migrations locally before pushing
-4. Keep migration files small and focused
-5. Document complex migrations
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Environment Setup
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-The project uses environment files for different contexts:
-- `.env.local` - Local development variables (not committed to git)
-- `.env` - Base environment variables
+3. Open [http://localhost:3000](http://localhost:3000) in your browser to see the result.
 
-For local development with Supabase:
-- `.env.development.local` - Local Supabase configuration
+### Environment Variables
 
-## Development Status
+Make sure to set up your environment variables in `.env.local` or `.env.development.local` file:
 
-Currently implementing:
-- AI Chat integration with RAG capabilities
-- Conversation context for multi-turn interactions
-- Project detail pages with related content
-
-Next steps:
-- Enhancing AI feedback mechanisms
-- Integrating chat component throughout the site
-- Adding analytics for chat interactions
+- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase instance URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
+- `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key (for admin operations)
 
 ## Deployment
 
-The project is optimized for deployment on Vercel with:
-- Automatic preview deployments
-- Edge functions support
-- Asset optimization
-- Analytics integration
-- Environment variable management
-- Custom deployment scripts
+Deploy your Next.js app to Vercel:
 

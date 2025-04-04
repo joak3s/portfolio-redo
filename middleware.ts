@@ -2,19 +2,31 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
+// Remote Supabase URL and key - hardcoded to ensure consistent use across the application
+const REMOTE_SUPABASE_URL = "https://lgtldjzglbzlmmxphfxw.supabase.co"
+const REMOTE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxndGxkanpnbGJ6bG1teHBoZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3MTkyNTksImV4cCI6MjA1NzI5NTI1OX0.TH_nrrp0W0MIJ7jaFZGPSe1vIYc6S7Oydl0Kw8UNe-c"
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   
-  // Create a Supabase client using the SSR package
+  // Debug log for troubleshooting
+  console.log(`Middleware processing: ${req.nextUrl.pathname}`);
+  
+  // Create a Supabase client using the SSR package with hardcoded remote URL
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    REMOTE_SUPABASE_URL,
+    REMOTE_SUPABASE_ANON_KEY,
     {
       cookies: {
         get(name: string) {
-          return req.cookies.get(name)?.value
+          const cookie = req.cookies.get(name)?.value;
+          if (cookie) {
+            console.log(`Middleware found cookie: ${name.substring(0, 5)}... (value hidden)`);
+          }
+          return cookie;
         },
         set(name: string, value: string, options: CookieOptions) {
+          console.log(`Middleware setting cookie: ${name.substring(0, 5)}... (value hidden)`);
           res.cookies.set({
             name,
             value,
@@ -22,10 +34,12 @@ export async function middleware(req: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
+          console.log(`Middleware removing cookie: ${name.substring(0, 5)}...`);
           res.cookies.set({
             name,
             value: '',
             ...options,
+            maxAge: 0,
           })
         },
       },
@@ -43,6 +57,8 @@ export async function middleware(req: NextRequest) {
     
     // For admin routes, redirect to login if no session
     if (req.nextUrl.pathname.startsWith('/admin') && !data.session) {
+      console.log('No session found for admin route, redirecting to login');
+      
       // Store the original URL to redirect back after login
       const redirectUrl = req.nextUrl.clone()
       redirectUrl.pathname = '/auth/login'

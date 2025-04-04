@@ -112,6 +112,59 @@ $_$;
 ALTER FUNCTION "public"."add_journey_image"("p_journey_id" "uuid", "p_url" "text", "p_alt_text" "text", "p_order_index" integer) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."add_tag"("p_name" "text") RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  v_tag_id UUID;
+BEGIN
+  -- Check if tag already exists
+  SELECT id INTO v_tag_id FROM public.tags WHERE name = p_name;
+  
+  -- If tag doesn't exist, create it
+  IF v_tag_id IS NULL THEN
+    INSERT INTO public.tags (name)
+    VALUES (p_name)
+    RETURNING id INTO v_tag_id;
+  END IF;
+  
+  RETURN v_tag_id;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."add_tag"("p_name" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."add_tool"("p_name" "text", "p_icon" "text") RETURNS "uuid"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  v_tool_id UUID;
+BEGIN
+  -- Check if tool already exists
+  SELECT id INTO v_tool_id FROM public.tools WHERE name = p_name;
+  
+  -- If tool doesn't exist, create it
+  IF v_tool_id IS NULL THEN
+    INSERT INTO public.tools (name, icon)
+    VALUES (p_name, p_icon)
+    RETURNING id INTO v_tool_id;
+  ELSE
+    -- Update the icon if tool exists
+    UPDATE public.tools
+    SET icon = p_icon
+    WHERE id = v_tool_id;
+  END IF;
+  
+  RETURN v_tool_id;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."add_tool"("p_name" "text", "p_icon" "text") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."create_journey"("p_title" "text", "p_subtitle" "text", "p_year" "text", "p_description" "text", "p_skills" "text"[], "p_icon" "text", "p_color" "text", "p_display_order" integer) RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -163,12 +216,24 @@ $$;
 ALTER FUNCTION "public"."delete_all_project_images"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."delete_all_project_tags"() RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  DELETE FROM public.project_tags;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."delete_all_project_tags"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."delete_all_project_tools"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
-begin
-  delete from project_tools where true;
-end;
+BEGIN
+  DELETE FROM public.project_tools;
+END;
 $$;
 
 
@@ -190,9 +255,9 @@ ALTER FUNCTION "public"."delete_all_projects"() OWNER TO "postgres";
 CREATE OR REPLACE FUNCTION "public"."delete_all_tools"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
-begin
-  delete from tools where true;
-end;
+BEGIN
+  DELETE FROM public.tools;
+END;
 $$;
 
 
@@ -577,7 +642,8 @@ CREATE TABLE IF NOT EXISTS "public"."tags" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "name" "text" NOT NULL,
     "slug" "text" NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"()
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
 );
 
 
@@ -588,11 +654,66 @@ CREATE TABLE IF NOT EXISTS "public"."tools" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "name" "text" NOT NULL,
     "slug" "text" NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"()
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "icon" "text",
+    "updated_at" timestamp with time zone DEFAULT "now"()
 );
 
 
 ALTER TABLE "public"."tools" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."projects_summary" AS
+ SELECT "p"."id",
+    "p"."title",
+    "p"."slug",
+    "p"."description",
+    "p"."summary",
+    ( SELECT COALESCE("json_agg"("t"."name"), '[]'::"json") AS "coalesce"
+           FROM ("public"."project_tools" "pt"
+             JOIN "public"."tools" "t" ON (("pt"."tool_id" = "t"."id")))
+          WHERE ("pt"."project_id" = "p"."id")) AS "tools",
+    ( SELECT COALESCE("json_agg"("t"."name"), '[]'::"json") AS "coalesce"
+           FROM ("public"."project_tags" "ptag"
+             JOIN "public"."tags" "t" ON (("ptag"."tag_id" = "t"."id")))
+          WHERE ("ptag"."project_id" = "p"."id")) AS "tags"
+   FROM "public"."projects" "p";
+
+
+ALTER TABLE "public"."projects_summary" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."projects_with_tags" AS
+ SELECT "p"."id" AS "project_id",
+    "p"."title" AS "project_title",
+    "p"."slug" AS "project_slug",
+    "p"."description" AS "project_description",
+    "p"."summary" AS "project_summary",
+    "t"."id" AS "tag_id",
+    "t"."name" AS "tag_name"
+   FROM (("public"."projects" "p"
+     LEFT JOIN "public"."project_tags" "pt" ON (("p"."id" = "pt"."project_id")))
+     LEFT JOIN "public"."tags" "t" ON (("pt"."tag_id" = "t"."id")));
+
+
+ALTER TABLE "public"."projects_with_tags" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."projects_with_tools" AS
+ SELECT "p"."id" AS "project_id",
+    "p"."title" AS "project_title",
+    "p"."slug" AS "project_slug",
+    "p"."description" AS "project_description",
+    "p"."summary" AS "project_summary",
+    "t"."id" AS "tool_id",
+    "t"."name" AS "tool_name",
+    "t"."icon" AS "tool_icon"
+   FROM (("public"."projects" "p"
+     LEFT JOIN "public"."project_tools" "pt" ON (("p"."id" = "pt"."project_id")))
+     LEFT JOIN "public"."tools" "t" ON (("pt"."tool_id" = "t"."id")));
+
+
+ALTER TABLE "public"."projects_with_tools" OWNER TO "postgres";
 
 
 ALTER TABLE ONLY "drizzle"."__drizzle_migrations" ALTER COLUMN "id" SET DEFAULT "nextval"('"drizzle"."__drizzle_migrations_id_seq"'::"regclass");
@@ -748,6 +869,14 @@ CREATE INDEX "project_images_order_idx" ON "public"."project_images" USING "btre
 
 
 CREATE INDEX "project_images_project_id_idx" ON "public"."project_images" USING "btree" ("project_id");
+
+
+
+CREATE OR REPLACE TRIGGER "handle_tags_updated_at" BEFORE UPDATE ON "public"."tags" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "handle_tools_updated_at" BEFORE UPDATE ON "public"."tools" FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 
 
@@ -1459,6 +1588,18 @@ GRANT ALL ON FUNCTION "public"."add_journey_image"("p_journey_id" "uuid", "p_url
 
 
 
+GRANT ALL ON FUNCTION "public"."add_tag"("p_name" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."add_tag"("p_name" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."add_tag"("p_name" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."add_tool"("p_name" "text", "p_icon" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."add_tool"("p_name" "text", "p_icon" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."add_tool"("p_name" "text", "p_icon" "text") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."binary_quantize"("public"."halfvec") TO "postgres";
 GRANT ALL ON FUNCTION "public"."binary_quantize"("public"."halfvec") TO "anon";
 GRANT ALL ON FUNCTION "public"."binary_quantize"("public"."halfvec") TO "authenticated";
@@ -1503,6 +1644,12 @@ GRANT ALL ON FUNCTION "public"."create_journey"("p_title" "text", "p_subtitle" "
 GRANT ALL ON FUNCTION "public"."delete_all_project_images"() TO "anon";
 GRANT ALL ON FUNCTION "public"."delete_all_project_images"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."delete_all_project_images"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."delete_all_project_tags"() TO "anon";
+GRANT ALL ON FUNCTION "public"."delete_all_project_tags"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."delete_all_project_tags"() TO "service_role";
 
 
 
@@ -2163,6 +2310,24 @@ GRANT ALL ON TABLE "public"."tags" TO "service_role";
 GRANT ALL ON TABLE "public"."tools" TO "anon";
 GRANT ALL ON TABLE "public"."tools" TO "authenticated";
 GRANT ALL ON TABLE "public"."tools" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."projects_summary" TO "anon";
+GRANT ALL ON TABLE "public"."projects_summary" TO "authenticated";
+GRANT ALL ON TABLE "public"."projects_summary" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."projects_with_tags" TO "anon";
+GRANT ALL ON TABLE "public"."projects_with_tags" TO "authenticated";
+GRANT ALL ON TABLE "public"."projects_with_tags" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."projects_with_tools" TO "anon";
+GRANT ALL ON TABLE "public"."projects_with_tools" TO "authenticated";
+GRANT ALL ON TABLE "public"."projects_with_tools" TO "service_role";
 
 
 

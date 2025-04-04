@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import type { Project, ProjectCreate, ProjectUpdate, ProjectImage, Tool, Tag } from "@/lib/types"
-import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, AlertCircle, Check, ChevronsUpDown, X, Loader2, MoveUp, MoveDown, ArrowUp, ArrowDown, GripVertical } from "lucide-react"
+import { Edit, Trash2, Plus, MoreHorizontal, ExternalLink, SquareChartGantt, AlertCircle, Check, ChevronsUpDown, X, Loader2, MoveUp, MoveDown, ArrowUp, ArrowDown, GripVertical } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -693,13 +693,13 @@ export default function AdminPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <h1 className="text-3xl md:text-4xl font-bold">Project Management</h1>
           <div className="flex flex-col md:flex-row gap-2">
+          <Button variant="outline" className="w-full md:w-auto" asChild>
+              <Link href="/admin/journey">
+                <SquareChartGantt className="mr-2 h-4 w-4" /> Journey
+              </Link>
+            </Button>
             <Button onClick={handleCreateProject} className="w-full md:w-auto">
               <Plus className="mr-2 h-4 w-4" /> Add Project
-            </Button>
-            <Button variant="outline" className="w-full md:w-auto" asChild>
-              <Link href="/admin/troubleshooting">
-                <AlertCircle className="mr-2 h-4 w-4" /> Troubleshooting
-              </Link>
             </Button>
           </div>
         </div>
