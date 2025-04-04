@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, Plus, Edit, Trash2, X, ArrowLeft, Upload, Image as ImageIcon, MoreHorizontal, Check, FolderKanban, PanelsTopLeft } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { supabaseClient } from "@/lib/supabase-browser"
-import { createJourneyEntry, updateJourneyEntry, deleteJourneyEntry } from "@/app/actions/journey-milestone"
 import Image from "next/image"
 import type { JourneyEntry } from "@/lib/types/journey"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -24,7 +23,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils"
 import { z } from "zod"
 import Link from "next/link"
-import { deleteJourneyImage, updateJourneyImageOrder } from "@/app/actions/journey-images"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 export default function AdminJourneyPage() {
@@ -197,11 +195,36 @@ export default function AdminJourneyPage() {
     if (!confirm("Are you sure you want to delete this journey entry?")) return
 
     try {
-      const result = await deleteJourneyEntry(id)
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to delete journey entry")
+      // Delete directly using Supabase client
+      console.log('Deleting journey entry with ID:', id)
+      
+      // First, delete any associated images from journey_images
+      console.log('Deleting associated images')
+      const { error: imagesError } = await supabaseClient
+        .from('journey_images')
+        .delete()
+        .eq('journey_id', id)
+      
+      if (imagesError) {
+        console.error('Error deleting journey images:', imagesError)
+        // Continue with deletion even if image deletion fails
+      } else {
+        console.log('Journey images deleted successfully')
       }
+      
+      // Then delete the journey entry
+      console.log('Deleting journey entry')
+      const { error: deleteError } = await supabaseClient
+        .from('journey')
+        .delete()
+        .eq('id', id)
+      
+      if (deleteError) {
+        console.error('Error deleting journey entry:', deleteError)
+        throw new Error(`Failed to delete journey entry: ${deleteError.message}`)
+      }
+      
+      console.log('Journey entry deleted successfully')
 
       toast({
         title: "Success",
@@ -215,7 +238,7 @@ export default function AdminJourneyPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete journey entry."
+        description: err instanceof Error ? err.message : "Failed to delete journey entry."
       })
     }
   }
@@ -283,27 +306,45 @@ export default function AdminJourneyPage() {
 
       if (imageFile) {
         setIsUploading(true);
-        console.log('Uploading image file first...');
+        console.log('Uploading image file directly to Supabase...');
 
         try {
-          // Create FormData for the file upload
-          const formData = new FormData();
-          formData.append('file', imageFile);
+          // Generate a unique filename
+          const timestamp = new Date().getTime();
+          const uniqueId = Math.random().toString(36).substring(2, 11);
+          const fileExt = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+          const filePath = `journey/${timestamp}-${uniqueId}.${fileExt}`;
 
-          // Upload the file using our server action instead of API route
-          const response = await fetch('/api/upload-image', {
-            method: 'POST',
-            body: formData,
-          });
+          // Upload directly to Supabase Storage
+          const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('public')
+            .upload(filePath, imageFile, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: imageFile.type
+            });
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to upload image');
+          if (uploadError) {
+            console.error('Storage upload error:', uploadError);
+            throw new Error(`Failed to upload image: ${uploadError.message}`);
           }
 
-          const imageData = await response.json();
-          uploadedImageUrl = imageData.url;
+          if (!uploadData?.path) {
+            throw new Error('Upload successful but no path returned');
+          }
+
+          // Get the public URL
+          const { data: urlData } = supabaseClient.storage
+            .from('public')
+            .getPublicUrl(uploadData.path);
+
+          if (!urlData?.publicUrl) {
+            throw new Error('Failed to get public URL for uploaded image');
+          }
+
+          uploadedImageUrl = urlData.publicUrl;
           console.log('Image uploaded successfully:', uploadedImageUrl);
+          
         } catch (uploadError) {
           console.error('Error uploading image:', uploadError);
           toast({
@@ -340,39 +381,145 @@ export default function AdminJourneyPage() {
         hasImage: !!formData.image_url
       });
 
-      let result;
-
-      if (currentId) {
-        // Update existing entry
-        result = await updateJourneyEntry(currentId, formData);
-      } else {
-        // Create new entry
-        result = await createJourneyEntry(formData);
-      }
-
-      if (result.success) {
-        toast({
-          title: `Journey entry ${currentId ? 'updated' : 'created'} successfully`,
-        });
-
+      try {
+        if (currentId) {
+          // Update existing entry directly with Supabase client
+          console.log(`Directly updating journey entry with ID: ${currentId}`);
+          
+          // First, update the journey entry
+          const { data: journeyData, error: updateError } = await supabaseClient
+            .from('journey')
+            .update({
+              title: formData.title,
+              subtitle: formData.subtitle || null,
+              year: formData.year,
+              description: formData.description,
+              skills: formData.skills,
+              icon: formData.icon,
+              color: formData.color,
+              display_order: formData.display_order
+            })
+            .eq('id', currentId)
+            .select('*')
+            .single();
+          
+          if (updateError) {
+            console.error('Error updating journey entry:', updateError);
+            throw new Error(`Failed to update journey entry: ${updateError.message}`);
+          }
+          
+          // If we have a new image URL, add it to journey_images
+          if (formData.image_url) {
+            console.log('Adding new image to updated journey entry');
+            
+            // First, get current images to determine highest order_index
+            const { data: existingImages, error: fetchError } = await supabaseClient
+              .from('journey_images')
+              .select('order_index')
+              .eq('journey_id', currentId)
+              .order('order_index', { ascending: false });
+            
+            if (fetchError) {
+              console.error('Error fetching existing images:', fetchError);
+            }
+            
+            const nextOrderIndex = existingImages && existingImages.length > 0 
+              ? existingImages[0].order_index + 1 
+              : 1;
+            
+            console.log('Adding image with order index:', nextOrderIndex);
+            const { error: imageError } = await supabaseClient
+              .from('journey_images')
+              .insert({
+                journey_id: currentId,
+                url: formData.image_url,
+                order_index: nextOrderIndex
+              });
+            
+            if (imageError) {
+              console.error('Error adding journey image:', imageError);
+              throw new Error(`Failed to add image: ${imageError.message}`);
+            } else {
+              console.log('Image added successfully to updated journey entry');
+            }
+          }
+          
+          toast({
+            title: "Journey entry updated successfully",
+          });
+        } else {
+          // Create new entry directly with Supabase client
+          console.log('Directly creating new journey entry');
+          
+          // Insert the new journey entry
+          const { data: journeyData, error: createError } = await supabaseClient
+            .from('journey')
+            .insert({
+              title: formData.title,
+              subtitle: formData.subtitle || null,
+              year: formData.year,
+              description: formData.description,
+              skills: formData.skills,
+              icon: formData.icon,
+              color: formData.color,
+              display_order: formData.display_order
+            })
+            .select('*')
+            .single();
+          
+          if (createError) {
+            console.error('Error creating journey entry:', createError);
+            throw new Error(`Failed to create journey entry: ${createError.message}`);
+          }
+          
+          console.log('Journey entry created with ID:', journeyData.id);
+          
+          // If we have an image URL, associate it with the journey entry
+          if (formData.image_url) {
+            console.log('Adding image to new journey entry');
+            
+            const { error: imageError } = await supabaseClient
+              .from('journey_images')
+              .insert({
+                journey_id: journeyData.id,
+                url: formData.image_url,
+                order_index: 1
+              });
+            
+            if (imageError) {
+              console.error('Error adding journey image:', imageError);
+              throw new Error(`Failed to add image: ${imageError.message}`);
+            } else {
+              console.log('Image added successfully to new journey entry');
+            }
+          }
+          
+          toast({
+            title: "Journey entry created successfully",
+          });
+        }
+        
         // Reset form and close modal
-        resetForm()
-        setIsDialogOpen(false)
-
+        resetForm();
+        setIsDialogOpen(false);
+        
         // Refresh journey list
-        fetchJourneyEntries()
-      } else {
-        console.error('Error saving journey entry:', result.error);
+        fetchJourneyEntries();
+        
+      } catch (error) {
+        console.error('Error saving journey entry:', error);
         toast({
-          title: `Error saving journey entry: ${result.error}`,
-          variant: 'destructive'
+          title: "Error saving journey entry",
+          description: error instanceof Error ? error.message : "Unknown error occurred",
+          variant: "destructive"
         });
       }
     } catch (error) {
       console.error('Submission error:', error);
       toast({
-        title: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-        variant: 'destructive'
+        title: "Error",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
