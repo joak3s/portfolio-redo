@@ -7,10 +7,29 @@ const REMOTE_SUPABASE_URL = "https://lgtldjzglbzlmmxphfxw.supabase.co"
 const REMOTE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxndGxkanpnbGJ6bG1teHBoZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3MTkyNTksImV4cCI6MjA1NzI5NTI1OX0.TH_nrrp0W0MIJ7jaFZGPSe1vIYc6S7Oydl0Kw8UNe-c"
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  
   // Debug log for troubleshooting
   console.log(`Middleware processing: ${req.nextUrl.pathname}`);
+  
+  // Add API monitoring headers for all API routes
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    // Add custom headers for better timeout handling and diagnostics
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('X-Request-Start-Time', Date.now().toString());
+    
+    const res = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+    
+    // For non-auth API routes, we're done
+    if (!req.nextUrl.pathname.startsWith('/api/admin')) {
+      return res;
+    }
+  }
+  
+  // Only proceed with auth checks for admin routes
+  const res = NextResponse.next();
   
   // Create a Supabase client using the SSR package with hardcoded remote URL
   const supabase = createServerClient(
@@ -81,7 +100,7 @@ export const config = {
   matcher: [
     // Apply this middleware to admin routes and API calls
     '/admin/:path*',
-    '/api/admin/:path*',
+    '/api/:path*',
     '/auth/login',
   ],
 } 

@@ -57,20 +57,54 @@ export async function semanticSearch(query: string, options: {
 
   try {
     // Generate embedding for the query
-    const embedding = await getEmbedding(query);
-
-    // Use Supabase's hybrid_search function to find relevant content
-    const { data: matches, error } = await supabase.rpc('hybrid_search', {
-      query_embedding: embedding,
-      query_text: query,
-      match_threshold: matchThreshold,
-      match_count: matchCount
+    const embedding = await getEmbedding(query).catch(err => {
+      console.error('Error generating embedding:', err);
+      throw new Error('Failed to generate embeddings for search');
     });
 
-    if (error) {
-      console.error('Error performing semantic search:', error);
+    // Use Supabase's hybrid_search function with retries
+    const executeQuery = async (attempts = 3) => {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const { data, error } = await supabase.rpc('hybrid_search', {
+            query_embedding: embedding,
+            query_text: query,
+            match_threshold: matchThreshold,
+            match_count: matchCount
+          });
+
+          if (error) {
+            // If this is the last attempt, throw the error
+            if (i === attempts - 1) {
+              console.error('Error performing semantic search after retries:', error);
+              throw error;
+            }
+            
+            // Wait before retrying (with exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 500));
+            continue;
+          }
+          
+          // Return data if successful
+          return data;
+        } catch (err) {
+          // If this is the last attempt, throw the error
+          if (i === attempts - 1) {
+            console.error('Exception in semantic search after retries:', err);
+            throw err;
+          }
+          
+          // Wait before retrying (with exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 500));
+        }
+      }
+      
+      // If all attempts fail, return empty array as fallback
       return [];
-    }
+    };
+    
+    // Execute the query with retries
+    const matches = await executeQuery();
 
     // Log matches for debugging
     console.log(`Found ${matches?.length || 0} matches:`, 
@@ -83,6 +117,7 @@ export async function semanticSearch(query: string, options: {
     return (matches as SearchResult[])?.filter((m: SearchResult) => contentTypes.includes(m.content_type)) || [];
   } catch (error) {
     console.error('Error in semantic search:', error);
+    // Return empty array instead of throwing to avoid breaking the chat flow
     return [];
   }
 }

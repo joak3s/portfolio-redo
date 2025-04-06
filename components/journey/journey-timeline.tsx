@@ -162,14 +162,14 @@ export default function TimelineMilestone({
             src={getImageUrl()}
             alt={`Illustration for ${milestone.title}`}
             fill
-            className="object-cover transition-transform group-hover:scale-105 duration-500 cursor-pointer"
+            className="object-cover transition-transform group-hover:scale-[102%] duration-500 cursor-pointer"
             onClick={() => openLightbox(0)}
           />
 
           {/* Visual indicator in bottom-right corner */}
           <div className="absolute bottom-2 right-2">
             <Badge variant="outline" className="bg-background/70 backdrop-blur-sm text-xs">
-              Featured Image
+              {milestone.year}
             </Badge>
           </div>
         </div>

@@ -151,18 +151,36 @@ export function AISimpleChat({ className, onContextUpdate }: AISimpleChatProps) 
     
     setIsLoading(true);
     try {
-      // Call the existing /api/chat endpoint
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: query }),
-      });
+      // Call the existing /api/chat endpoint with retry mechanism
+      const fetchWithRetry = async (retries = 3, delay = 1000) => {
+        for (let attempt = 0; attempt < retries; attempt++) {
+          try {
+            const res = await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: query }),
+            });
+            
+            if (!res.ok) {
+              throw new Error(`Error: ${res.status}`);
+            }
+            
+            return await res.json();
+          } catch (error) {
+            console.warn(`Attempt ${attempt + 1}/${retries} failed:`, error);
+            
+            // If this is the last attempt, throw the error
+            if (attempt === retries - 1) {
+              throw error;
+            }
+            
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
+          }
+        }
+      };
       
-      if (!res.ok) {
-        throw new Error(`Error: ${res.status}`);
-      }
-      
-      const data = await res.json();
+      const data = await fetchWithRetry();
       
       // Update the messages state with the response
       setMessages(prev => [

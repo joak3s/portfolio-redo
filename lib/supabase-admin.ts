@@ -36,6 +36,48 @@ const getServiceRoleKey = () => {
   return key
 }
 
+// Create a custom fetch function with better error handling and timeout
+const createCustomFetch = () => {
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    // Default timeout of 15 seconds
+    const timeout = 15000;
+    
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    // Merge the abort signal with any existing signal
+    const fetchOptions: RequestInit = {
+      ...init,
+      signal: controller.signal
+    };
+    
+    try {
+      const response = await fetch(input, fetchOptions);
+      clearTimeout(id);
+      return response;
+    } catch (error) {
+      clearTimeout(id);
+      
+      // Improve error message based on the nature of the error
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.error(`Request timed out after ${timeout}ms`);
+          throw new Error(`Request timeout (${timeout}ms) to Supabase`);
+        }
+        
+        if (error.message.includes('fetch failed')) {
+          console.error(`Network error when connecting to Supabase`);
+          throw new Error('Network connectivity issue with Supabase. Please check your internet connection.');
+        }
+      }
+      
+      // Re-throw the original error
+      throw error;
+    }
+  };
+};
+
 // Admin client with service role for server-side operations only
 export const createAdminClient = () => {
   try {
@@ -43,6 +85,9 @@ export const createAdminClient = () => {
     const key = getServiceRoleKey()
     
     console.log(`Creating Supabase admin client with URL: ${url.substring(0, 20)}...`)
+    
+    // Custom fetch implementation for better error handling
+    const customFetch = createCustomFetch();
     
     return createClient<Database>(
       url,
@@ -52,6 +97,9 @@ export const createAdminClient = () => {
           autoRefreshToken: false,
           persistSession: false,
         },
+        global: {
+          fetch: customFetch
+        }
       }
     )
   } catch (error) {
@@ -94,4 +142,40 @@ export const testSupabaseConnection = async () => {
       error
     }
   }
+}
+
+// Utility function to handle retries for Supabase queries
+export const withRetry = async <T>(
+  queryFn: () => Promise<{ data: T | null; error: any }> | { then(onfulfilled: (value: { data: T | null; error: any }) => any): any },
+  { maxRetries = 3, retryDelay = 1000 } = {}
+): Promise<{ data: T | null; error: any }> => {
+  let lastError = null
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await queryFn()
+      
+      if (!result.error) {
+        return result
+      }
+      
+      lastError = result.error
+      console.warn(`Query attempt ${attempt}/${maxRetries} failed:`, result.error)
+      
+      // If not the last attempt, wait before retrying
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt))
+      }
+    } catch (error) {
+      lastError = error
+      console.warn(`Query attempt ${attempt}/${maxRetries} failed with exception:`, error)
+      
+      // If not the last attempt, wait before retrying
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt))
+      }
+    }
+  }
+  
+  return { data: null, error: lastError }
 } 

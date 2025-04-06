@@ -10,7 +10,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+// Define timeout for API requests
+const TIMEOUT_MS = 10000;
+
 export async function POST(request: Request) {
+  // Start the timer for the request
+  const startTime = Date.now();
+  
   try {
     // Parse request body
     const { prompt } = await request.json();
@@ -24,13 +30,25 @@ export async function POST(request: Request) {
     
     console.log('Received prompt:', prompt);
     
-    // Get relevant documents based on the prompt
-    const searchResults = await semanticSearch(prompt, {
+    // Create a timeout promise to abort long-running requests
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Request timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS);
+    });
+    
+    // Run semantic search with a timeout
+    const searchResultsPromise = semanticSearch(prompt, {
       matchThreshold: 0.5,  // Lower threshold to find more matches
       matchCount: 5,        // Increase match count for better context
     });
     
+    // Race the search against the timeout
+    const searchResults = await Promise.race([
+      searchResultsPromise,
+      timeoutPromise
+    ]) as Awaited<typeof searchResultsPromise>;
+    
     console.log(`Found ${searchResults.length} relevant documents`);
+    console.log('Search execution time:', Date.now() - startTime, 'ms');
     
     // Format response context
     const responseContext = formatContext(searchResults);
@@ -63,15 +81,22 @@ ${mostRelevantProject ? `Relevant Project:\n${JSON.stringify(mostRelevantProject
       { role: 'user', content: prompt }
     ];
     
-    // Call OpenAI with increased token limit for richer responses
-    const completion = await openai.chat.completions.create({
+    // Call OpenAI with race against timeout
+    const completionPromise = openai.chat.completions.create({
       model: 'gpt-4-turbo',
       messages: messages as any,
       temperature: 0.7,
       max_tokens: 1000,
     });
     
+    // Race the completion against the timeout
+    const completion = await Promise.race([
+      completionPromise,
+      timeoutPromise
+    ]) as Awaited<typeof completionPromise>;
+    
     const response = completion.choices[0].message.content;
+    console.log('Total execution time:', Date.now() - startTime, 'ms');
     
     // Return the enhanced response
     return NextResponse.json({ 
@@ -81,9 +106,33 @@ ${mostRelevantProject ? `Relevant Project:\n${JSON.stringify(mostRelevantProject
       relevant_project: mostRelevantProject?.content || null
     });
   } catch (error: any) {
-    console.error('Error in chat API:', error);
+    const executionTime = Date.now() - startTime;
+    console.error(`Error in chat API (${executionTime}ms):`, error);
+    
+    // Different error responses based on the error type
+    if (error.message?.includes('timed out')) {
+      return NextResponse.json(
+        { 
+          error: 'The request took too long to process',
+          response: "I'm sorry, but your request is taking longer than expected to process. Could you try a simpler question or try again in a moment?"
+        },
+        { status: 504 }
+      );
+    } else if (error.message?.includes('fetch failed')) {
+      return NextResponse.json(
+        {
+          error: 'Network connectivity issue',
+          response: "I'm having trouble connecting to the knowledge base right now. This could be due to a temporary network issue. Please try again shortly."
+        },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: error.message || 'Failed to process request' },
+      { 
+        error: error.message || 'Failed to process request',
+        response: "I'm sorry, I encountered an error while processing your request. Please try again with a different question."
+      },
       { status: 500 }
     );
   }
