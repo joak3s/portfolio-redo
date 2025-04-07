@@ -242,3 +242,28 @@ Make sure to set up your environment variables in `.env.local` or `.env.developm
 
 Deploy your Next.js app to Vercel:
 
+## Supabase Integration Improvements
+
+Recent improvements to the Supabase integration:
+
+### Admin Panel Security Enhancements
+
+- **Secure Service Role Handling**: Implemented proper server-side handling of the Supabase service role key, ensuring it's never exposed to the client.
+- **Server Actions**: Created dedicated server actions in `app/actions/admin.ts` for all admin operations, replacing direct client-side API calls.
+- **Type Safety**: Enhanced TypeScript definitions in `lib/database.types.ts` to match the actual database schema.
+
+### Journey Management
+
+- **Schema Update**: Properly integrated the new "journey" and "journey_images" tables, replacing the old "journey_milestones" schema.
+- **Admin Interface**: Updated the admin interface to work with the new schema while maintaining compatibility with existing frontends.
+- **API Endpoint**: Created a secure API endpoint (`/api/journey`) for client-side access to journey data.
+
+### Supabase Client Refactoring
+
+- **Unified Client Access**: Consolidated Supabase client implementations into centralized files:
+  - `lib/supabase-browser.ts` - For client-side access with anon key
+  - `lib/supabase-server.ts` - For server components with user auth
+  - `lib/supabase-admin.ts` - For server actions with service role
+
+- **Error Handling**: Improved error handling throughout the application with better error messages and graceful fallbacks.
+

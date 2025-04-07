@@ -1,196 +1,170 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getAdminClient } from '@/lib/supabase-admin'
 import type { ProjectImage, ProjectUpdate } from '@/lib/types'
 
 /**
  * Update project images in the database
  */
-export async function updateProjectImages(
-  projectId: string,
-  images: ProjectUpdate['images']
-) {
-  console.log('Updating project images for project:', projectId);
-  
+export async function updateProjectImages(projectId: string, images: any[]) {
   try {
     if (!projectId) {
-      console.error('Missing projectId in updateProjectImages');
-      throw new Error('Project ID is required');
+      throw new Error("Project ID is required")
     }
-    
-    if (!images) {
-      console.log('No images to update for project:', projectId);
-      return; // Nothing to do
+
+    if (!images || !Array.isArray(images)) {
+      console.log("No images to update or invalid images data")
+      return
     }
-    
-    // Validate image data
-    const validatedImages = images.filter(img => {
-      if (!img || typeof img !== 'object') {
-        console.warn('Invalid image object:', img);
-        return false; 
-      }
-      
-      if (!img.url || typeof img.url !== 'string') {
-        console.warn('Image missing URL or invalid URL type:', img);
-        return false;
-      }
-      
-      return true;
-    });
-    
-    console.log(`Processing ${validatedImages.length} valid images for project ${projectId}`);
-    
-    // Delete existing images
+
+    const supabaseAdmin = await getAdminClient()
+
+    // Delete existing images for this project
     const { error: deleteError } = await supabaseAdmin
       .from('project_images')
       .delete()
       .eq('project_id', projectId)
-    
+
     if (deleteError) {
-      console.error('Error deleting project images:', deleteError)
-      throw new Error(`Failed to delete existing images: ${deleteError.message}`)
+      console.error("Error deleting existing project images:", deleteError)
+      throw deleteError
     }
-    
-    // Insert new images if there are any
-    if (validatedImages.length > 0) {
-      const imagesToInsert = validatedImages.map((image, index) => ({
-        project_id: projectId,
-        url: image.url,
-        alt_text: image.alt_text || '',
-        order_index: image.order_index !== undefined ? image.order_index : index
-      }));
-      
-      const { error: insertError } = await supabaseAdmin
-        .from('project_images')
-        .insert(imagesToInsert)
-      
-      if (insertError) {
-        console.error('Error inserting project images:', insertError)
-        throw new Error(`Failed to insert new images: ${insertError.message}`)
-      }
-      
-      console.log(`Successfully updated ${validatedImages.length} images for project ${projectId}`);
+
+    // If there are no new images, we're done
+    if (images.length === 0) {
+      console.log("No new images to add")
+      return
     }
+
+    // Insert the new images
+    const formattedImages = images.map((img, index) => ({
+      project_id: projectId,
+      url: img.url,
+      alt_text: img.alt_text || '',
+      order_index: img.order_index || index,
+      is_cover: img.is_cover || false
+    }))
+
+    const { error: insertError } = await supabaseAdmin
+      .from('project_images')
+      .insert(formattedImages)
+
+    if (insertError) {
+      console.error("Error inserting project images:", insertError)
+      throw insertError
+    }
+
+    console.log(`Successfully updated ${images.length} images for project ${projectId}`)
   } catch (error) {
-    console.error('Error in updateProjectImages:', error);
-    throw error;
+    console.error("Error in updateProjectImages:", error)
+    throw error
   }
 }
 
 /**
  * Update project tools in the database
  */
-export async function updateProjectTools(
-  projectId: string,
-  toolIds: ProjectUpdate['tool_ids']
-) {
-  console.log('Updating project tools for project:', projectId);
-  
+export async function updateProjectTools(projectId: string, tools: string[]) {
   try {
     if (!projectId) {
-      console.error('Missing projectId in updateProjectTools');
-      throw new Error('Project ID is required');
+      throw new Error("Project ID is required")
     }
-    
-    if (!toolIds) {
-      console.log('No tools to update for project:', projectId);
-      return; // Nothing to do
+
+    if (!tools || !Array.isArray(tools)) {
+      console.log("No tools to update or invalid tools data")
+      return
     }
-    
-    // Validate tool IDs
-    const validatedToolIds = toolIds.filter(id => id && typeof id === 'string');
-    
-    console.log(`Processing ${validatedToolIds.length} valid tools for project ${projectId}`);
-    
-    // Delete existing tools
+
+    const supabaseAdmin = await getAdminClient()
+
+    // Delete existing tools for this project
     const { error: deleteError } = await supabaseAdmin
       .from('project_tools')
       .delete()
       .eq('project_id', projectId)
-    
+
     if (deleteError) {
-      console.error('Error deleting project tools:', deleteError)
-      throw new Error(`Failed to delete existing tools: ${deleteError.message}`)
+      console.error("Error deleting existing project tools:", deleteError)
+      throw deleteError
     }
-    
-    // Insert new tools if there are any
-    if (validatedToolIds.length > 0) {
-      const toolsToInsert = validatedToolIds.map(toolId => ({
-        project_id: projectId,
-        tool_id: toolId
-      }));
-      
-      const { error: insertError } = await supabaseAdmin
-        .from('project_tools')
-        .insert(toolsToInsert)
-      
-      if (insertError) {
-        console.error('Error inserting project tools:', insertError)
-        throw new Error(`Failed to insert new tools: ${insertError.message}`)
-      }
-      
-      console.log(`Successfully updated ${validatedToolIds.length} tools for project ${projectId}`);
+
+    // If there are no new tools, we're done
+    if (tools.length === 0) {
+      console.log("No new tools to add")
+      return
     }
+
+    // Insert the new tools
+    const formattedTools = tools.map(toolId => ({
+      project_id: projectId,
+      tool_id: toolId
+    }))
+
+    const { error: insertError } = await supabaseAdmin
+      .from('project_tools')
+      .insert(formattedTools)
+
+    if (insertError) {
+      console.error("Error inserting project tools:", insertError)
+      throw insertError
+    }
+
+    console.log(`Successfully updated ${tools.length} tools for project ${projectId}`)
   } catch (error) {
-    console.error('Error in updateProjectTools:', error);
-    throw error;
+    console.error("Error in updateProjectTools:", error)
+    throw error
   }
 }
 
 /**
  * Update project tags in the database
  */
-export async function updateProjectTags(
-  projectId: string,
-  tagIds: ProjectUpdate['tag_ids']
-) {
-  console.log('Updating project tags for project:', projectId);
-  
+export async function updateProjectTags(projectId: string, tags: string[]) {
   try {
     if (!projectId) {
-      console.error('Missing projectId in updateProjectTags');
-      throw new Error('Project ID is required');
+      throw new Error("Project ID is required")
     }
-    
-    if (!tagIds) {
-      console.log('No tags to update for project:', projectId);
-      return; // Nothing to do
+
+    if (!tags || !Array.isArray(tags)) {
+      console.log("No tags to update or invalid tags data")
+      return
     }
-    
-    // Validate tag IDs
-    const validatedTagIds = tagIds.filter(id => id && typeof id === 'string');
-    
-    console.log(`Processing ${validatedTagIds.length} valid tags for project ${projectId}`);
-    
-    // Delete existing tags
+
+    const supabaseAdmin = await getAdminClient()
+
+    // Delete existing tags for this project
     const { error: deleteError } = await supabaseAdmin
       .from('project_tags')
       .delete()
       .eq('project_id', projectId)
-    
+
     if (deleteError) {
-      console.error('Error deleting project tags:', deleteError)
-      throw new Error(`Failed to delete existing tags: ${deleteError.message}`)
+      console.error("Error deleting existing project tags:", deleteError)
+      throw deleteError
     }
-    
-    // Insert new tags if there are any
-    if (validatedTagIds.length > 0) {
-      const tagsToInsert = validatedTagIds.map(tagId => ({
-        project_id: projectId,
-        tag_id: tagId
-      }));
-      
-      const { error: insertError } = await supabaseAdmin
-        .from('project_tags')
-        .insert(tagsToInsert)
-      
-      if (insertError) {
-        console.error('Error inserting project tags:', insertError)
-        throw new Error(`Failed to insert new tags: ${insertError.message}`)
-      }
-      
-      console.log(`Successfully updated ${validatedTagIds.length} tags for project ${projectId}`);
+
+    // If there are no new tags, we're done
+    if (tags.length === 0) {
+      console.log("No new tags to add")
+      return
     }
+
+    // Insert the new tags
+    const formattedTags = tags.map(tagId => ({
+      project_id: projectId,
+      tag_id: tagId
+    }))
+
+    const { error: insertError } = await supabaseAdmin
+      .from('project_tags')
+      .insert(formattedTags)
+
+    if (insertError) {
+      console.error("Error inserting project tags:", insertError)
+      throw insertError
+    }
+
+    console.log(`Successfully updated ${tags.length} tags for project ${projectId}`)
   } catch (error) {
-    console.error('Error in updateProjectTags:', error);
-    throw error;
+    console.error("Error in updateProjectTags:", error)
+    throw error
   }
 } 

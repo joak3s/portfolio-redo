@@ -1,40 +1,34 @@
-import { createClient } from '@supabase/supabase-js';
+'use client'
+
 import { v4 as uuidv4 } from 'uuid';
-
-// Get environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Create Supabase client
-// For server-side components, we can access the service role key
-// Otherwise fallback to anon key
-const supabaseKey = typeof window === 'undefined' 
-  ? process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey
-  : supabaseAnonKey;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Check if we have valid credentials
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase credentials. Check your environment variables.');
-}
+import { supabaseClient } from '../supabase';
 
 export interface UploadImageOptions {
   file: File;
   bucket?: string;
   folder?: string;
+  projectId?: string; // Added support for project-specific uploads
+}
+
+export interface ImageMetadata {
+  url: string;
+  path: string;
+  alt?: string;
 }
 
 /**
- * Uploads an image to Supabase storage and returns the public URL
+ * Uploads an image to Supabase storage and returns the public URL and metadata
+ * Can be used for any image upload needs (projects, journey milestones, etc.)
+ * 
  * @param options Options for uploading the image
- * @returns The public URL of the uploaded image
+ * @returns Image metadata including URL, path, and alt text
  */
 export async function uploadImage({ 
   file, 
   bucket = 'public', 
-  folder = 'journey_milestones' 
-}: UploadImageOptions): Promise<string> {
+  folder = 'images',
+  projectId
+}: UploadImageOptions): Promise<ImageMetadata> {
   try {
     console.log(`Attempting to upload to bucket '${bucket}', folder '${folder}'`);
     
@@ -52,62 +46,71 @@ export async function uploadImage({
 
     // Generate a unique filename
     const fileExt = file.name.split('.').pop() || 'jpg';
-    const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = `${folder}/${fileName}`;
-
-    console.log(`Uploading file: ${fileName} to path: ${filePath}`);
-
-    // Verify the Supabase client has been properly initialized
-    if (!supabase || !supabase.storage) {
-      throw new Error('Supabase client not properly initialized. Check your environment variables.');
-    }
-
-    // This function will only be called from a server action or API route
-    // So we can try to use a server-side approach to upload
-    let uploadResponse;
     
-    // Browser/client uploads will still go through the regular API
-    if (typeof window !== 'undefined') {
-      // Client-side upload with anon key (normal flow)
-      uploadResponse = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file, {
-          contentType: file.type,
-          cacheControl: '3600',
-          upsert: true 
-        });
+    // Create path based on folder and optional projectId
+    let filePath;
+    if (projectId) {
+      filePath = `${folder}/${projectId}/${uuidv4()}.${fileExt}`;
     } else {
-      // Server-side upload with service role key (should have full permissions)
-      const serviceClient = createClient(
-        supabaseUrl, 
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      );
-      
-      uploadResponse = await serviceClient.storage
-        .from(bucket)
-        .upload(filePath, file, {
-          contentType: file.type,
-          cacheControl: '3600',
-          upsert: true
-        });
+      filePath = `${folder}/${uuidv4()}.${fileExt}`;
     }
-    
-    const { data, error } = uploadResponse;
+
+    console.log(`Uploading file: ${file.name} to path: ${filePath}`);
+
+    // Upload the file using the browser client
+    const { data, error } = await supabaseClient.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        contentType: file.type,
+        cacheControl: '3600',
+        upsert: true 
+      });
 
     if (error) {
-      console.error('Supabase upload error:', error);
+      console.error('Storage upload error:', error);
       throw new Error(`Error uploading image: ${error.message}`);
     }
 
     // Get public URL for the file
-    const { data: { publicUrl } } = supabase.storage
+    const { data: { publicUrl } } = supabaseClient.storage
       .from(bucket)
       .getPublicUrl(filePath);
 
     console.log(`Upload successful. Public URL: ${publicUrl}`);
-    return publicUrl;
+    
+    // Return full metadata
+    return {
+      url: publicUrl,
+      path: filePath,
+      alt: file.name.split('.')[0] // Use filename as alt text
+    };
   } catch (error) {
     console.error('Upload error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Deletes an image from Supabase storage
+ * 
+ * @param path Path to the image in the bucket
+ * @param bucket Storage bucket name
+ */
+export async function deleteImage(path: string, bucket = 'public') {
+  try {
+    const { error } = await supabaseClient.storage
+      .from(bucket)
+      .remove([path]);
+
+    if (error) {
+      console.error('Error deleting image:', error);
+      throw error;
+    }
+    
+    console.log(`Successfully deleted image: ${path}`);
+    return true;
+  } catch (error) {
+    console.error('Error deleting image:', error);
     throw error;
   }
 } 

@@ -1,37 +1,47 @@
 "use server"
 
-import { supabaseAdmin } from "@/lib/supabase-admin"
+import { getAdminClient } from './supabase-admin'
+import { createServerSupabaseClient } from './supabase-server'
 import type { Project } from "./types"
 
 // Read all projects
 export async function getProjects(): Promise<Project[]> {
   try {
+    const supabaseAdmin = await getAdminClient()
     const { data: projects, error } = await supabaseAdmin
       .from('projects')
       .select(`
         *,
         project_images (*),
         project_tools (
-          tool:tools (*)
+          tool_id,
+          tools (*)
         ),
         project_tags (
-          tag:tags (*)
+          tag_id,
+          tags (*)
         )
       `)
-      .order('created_at', { ascending: false })
+      .order('display_order', { ascending: true })
 
     if (error) {
-      console.error("Error reading projects:", error)
-      return []
+      console.error('Error fetching projects:', error)
+      throw error
     }
 
-    return projects.map(project => ({
-      ...project,
-      tools: project.project_tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
-      tags: project.project_tags?.map((pt: any) => pt.tag).filter(Boolean) || []
-    }))
+    // Transform data to match expected format
+    const formattedProjects = projects.map(project => {
+      return {
+        ...project,
+        tools: project.project_tools.map((pt: any) => pt.tools),
+        tags: project.project_tags.map((pt: any) => pt.tags),
+        images: project.project_images
+      }
+    })
+
+    return formattedProjects
   } catch (error) {
-    console.error("Error reading projects:", error)
+    console.error('Error in getProjects:', error)
     return []
   }
 }
@@ -39,33 +49,38 @@ export async function getProjects(): Promise<Project[]> {
 // Get a single project by slug
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   try {
+    const supabaseAdmin = await getAdminClient()
     const { data: project, error } = await supabaseAdmin
       .from('projects')
       .select(`
         *,
         project_images (*),
         project_tools (
-          tool:tools (*)
+          tool_id,
+          tools (*)
         ),
         project_tags (
-          tag:tags (*)
+          tag_id,
+          tags (*)
         )
       `)
       .eq('slug', slug)
       .single()
 
-    if (error || !project) {
-      console.error("Error getting project by slug:", error)
+    if (error) {
+      console.error(`Error fetching project with slug ${slug}:`, error)
       return null
     }
 
+    // Transform data to match expected format
     return {
       ...project,
-      tools: project.project_tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
-      tags: project.project_tags?.map((pt: any) => pt.tag).filter(Boolean) || []
+      tools: project.project_tools.map((pt: any) => pt.tools),
+      tags: project.project_tags.map((pt: any) => pt.tags),
+      images: project.project_images
     }
   } catch (error) {
-    console.error("Error getting project by slug:", error)
+    console.error(`Error in getProjectBySlug for ${slug}:`, error)
     return null
   }
 }
@@ -73,80 +88,55 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
 // Get featured projects
 export async function getFeaturedProjects(): Promise<Project[]> {
   try {
-    const { data: projects, error } = await supabaseAdmin
-      .from('projects')
-      .select(`
-        *,
-        project_images (*),
-        project_tools (
-          tool:tools (*)
-        ),
-        project_tags (
-          tag:tags (*)
-        )
-      `)
-      .is('featured', true)
-      .order('featured', { ascending: true })
-      .limit(5)
-
-    if (error) {
-      console.error("Error getting featured projects:", error)
-      return []
-    }
-
-    return projects.map(project => ({
-      ...project,
-      tools: project.project_tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
-      tags: project.project_tags?.map((pt: any) => pt.tag).filter(Boolean) || []
-    }))
+    const projects = await getProjects()
+    return projects.filter(project => project.featured)
   } catch (error) {
-    console.error("Error getting featured projects:", error)
+    console.error('Error in getFeaturedProjects:', error)
     return []
   }
 }
 
 // Create a new project
-export async function createProject(project: Omit<Project, "id">): Promise<Project> {
+export async function createProject(projectData: any): Promise<Project> {
   try {
-    const projects = await getProjects()
-    const newId = projects.length > 0 ? Math.max(...projects.map((p) => p.id)) + 1 : 1
+    const supabaseAdmin = await getAdminClient()
+    const { data, error } = await supabaseAdmin
+      .from('projects')
+      .insert([projectData])
+      .select()
+      .single()
 
-    // Check if slug already exists
-    if (projects.some((p) => p.slug === project.slug)) {
-      throw new Error(`Project with slug "${project.slug}" already exists`)
+    if (error) {
+      console.error('Error creating project:', error)
+      throw error
     }
 
-    const newProject = { ...project, id: newId }
-    await supabaseAdmin.from('projects').insert([newProject])
-
-    return newProject
+    return data
   } catch (error) {
-    console.error("Error creating project:", error)
+    console.error('Error in createProject:', error)
     throw error
   }
 }
 
 // Update an existing project by slug
-export async function updateProjectBySlug(slug: string, project: Partial<Project>): Promise<Project> {
+export async function updateProjectBySlug(slug: string, projectData: any): Promise<Project> {
   try {
-    const projects = await getProjects()
-    const index = projects.findIndex((p) => p.slug === slug)
+    const supabaseAdmin = await getAdminClient()
+    const { data, error } = await supabaseAdmin
+      .from('projects')
+      .update(projectData)
+      .eq('slug', slug)
+      .select()
+      .single()
 
-    if (index === -1) {
-      throw new Error(`Project with slug ${slug} not found`)
+    if (error) {
+      console.error(`Error updating project with slug ${slug}:`, error)
+      throw error
     }
 
-    // Check if new slug already exists (if slug is being changed)
-    if (project.slug && project.slug !== slug && projects.some((p) => p.slug === project.slug)) {
-      throw new Error(`Project with slug "${project.slug}" already exists`)
-    }
-
-    const updatedProject = { ...projects[index], ...project }
-    await supabaseAdmin.from('projects').update(updatedProject).eq('slug', slug)
-
-    return updatedProject
+    return data
   } catch (error) {
-    console.error("Error updating project by slug:", error)
+    console.error(`Error in updateProjectBySlug for ${slug}:`, error)
     throw error
   }
 }
@@ -154,16 +144,55 @@ export async function updateProjectBySlug(slug: string, project: Partial<Project
 // Delete a project by slug
 export async function deleteProjectBySlug(slug: string): Promise<void> {
   try {
-    const projects = await getProjects()
-    const filteredProjects = projects.filter((p) => p.slug !== slug)
+    const supabaseAdmin = await getAdminClient()
+    
+    // First get the project ID
+    const { data: project, error: fetchError } = await supabaseAdmin
+      .from('projects')
+      .select('id')
+      .eq('slug', slug)
+      .single()
 
-    if (filteredProjects.length === projects.length) {
-      throw new Error(`Project with slug ${slug} not found`)
+    if (fetchError || !project) {
+      console.error(`Error fetching project with slug ${slug}:`, fetchError)
+      throw fetchError || new Error('Project not found')
     }
 
-    await supabaseAdmin.from('projects').delete().eq('slug', slug)
+    const projectId = project.id
+
+    // Delete project data
+    // Delete project images
+    await supabaseAdmin
+      .from('project_images')
+      .delete()
+      .eq('project_id', projectId)
+    
+    // Delete project tools
+    await supabaseAdmin
+      .from('project_tools')
+      .delete()
+      .eq('project_id', projectId)
+    
+    // Delete project tags
+    await supabaseAdmin
+      .from('project_tags')
+      .delete()
+      .eq('project_id', projectId)
+    
+    // Delete the project itself
+    const { error } = await supabaseAdmin
+      .from('projects')
+      .delete()
+      .eq('id', projectId)
+
+    if (error) {
+      console.error(`Error deleting project with slug ${slug}:`, error)
+      throw error
+    }
+
+    return true
   } catch (error) {
-    console.error("Error deleting project by slug:", error)
+    console.error(`Error in deleteProjectBySlug for ${slug}:`, error)
     throw error
   }
 }

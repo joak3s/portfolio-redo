@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabaseClient } from "@/lib/supabase-browser"
 import type { Milestone, JourneyEntry } from "@/lib/types/journey"
-import type { Database } from "@/lib/types/supabase"
+import type { Database } from "@/lib/database.types"
 
 /**
  * Hook to fetch journey entries using the new database structure
@@ -19,51 +19,29 @@ export function useJourneyMilestones() {
         setIsLoading(true)
         setError(null)
         
-        // First, fetch all journey entries
-        const { data: journeyData, error: journeyError } = await supabaseClient
-          .from('journey')
-          .select('*')
-          .order('display_order', { ascending: true })
+        // Fetch journey entries using the API endpoint instead of direct client access
+        const response = await fetch('/api/journey')
         
-        if (journeyError) throw new Error(journeyError.message)
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`)
+        }
+        
+        const journeyData = await response.json()
         
         if (!journeyData || journeyData.length === 0) {
           setMilestones([])
           return
         }
         
-        // Then fetch all images for these entries
-        const journeyIds = journeyData.map(entry => entry.id)
-        
-        const { data: imagesData, error: imagesError } = await supabaseClient
-          .from('journey_images')
-          .select('*')
-          .in('journey_id', journeyIds)
-          .order('order_index', { ascending: true })
-        
-        if (imagesError) {
-          console.warn("Error fetching journey images:", imagesError)
-          // Continue without images rather than failing completely
-        }
-        
-        // Group images by journey_id
-        const imagesByJourneyId = (imagesData || []).reduce((acc, image) => {
-          if (!acc[image.journey_id]) {
-            acc[image.journey_id] = []
-          }
-          acc[image.journey_id].push(image)
-          return acc
-        }, {} as Record<string, any[]>)
-        
-        // Map the new structure to be compatible with both old and new components
-        const compatibleMilestones = journeyData.map((entry) => {
-          const images = imagesByJourneyId[entry.id] || [];
+        // Map the journey entries to milestone format for compatibility
+        const compatibleMilestones = journeyData.map((entry: JourneyEntry) => {
+          const images = entry.journey_images || [];
           
           // Create a compatible milestone object that satisfies both interfaces
           return {
             // Common properties from both types
             title: entry.title,
-            subtitle: entry.subtitle || '', // Include subtitle field with fallback
+            subtitle: entry.subtitle || '', 
             year: entry.year,
             description: entry.description,
             skills: entry.skills,

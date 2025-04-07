@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ProjectCreate, ProjectUpdate } from '@/lib/types'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getAdminClient } from '@/lib/supabase-admin'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { updateProjectImages, updateProjectTools, updateProjectTags } from '@/lib/project-helpers'
 
@@ -13,21 +13,13 @@ type ProjectImageInput = {
 // Helper function to verify admin authentication
 async function verifyAdmin() {
   try {
-    // Create a supabase client using our standardized SSR implementation
     const supabase = await createServerSupabaseClient()
     const { data: { session }, error } = await supabase.auth.getSession()
     
-    if (error) {
-      console.error('Authentication error:', error)
+    if (error || !session) {
       return false
     }
     
-    if (!session) {
-      console.error('No active session')
-      return false
-    }
-    
-    // You could add additional role checks here if needed
     return true
   } catch (error) {
     console.error('Authentication verification error:', error)
@@ -35,381 +27,219 @@ async function verifyAdmin() {
   }
 }
 
-// Get all projects (admin view - includes drafts)
+// GET /api/admin/projects - Get all projects (admin only)
 export async function GET() {
-  try {
-    // Verify the request is from an authenticated admin
-    const isAdmin = await verifyAdmin()
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  if (!await verifyAdmin()) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
+  try {
+    const supabaseAdmin = await getAdminClient()
     const { data: projects, error } = await supabaseAdmin
       .from('projects')
       .select(`
         *,
         project_images (*),
-        tools:project_tools (
-          tool:tools (*)
+        project_tools (
+          tool_id,
+          tools (*)
         ),
-        tags:project_tags (
-          tag:tags (*)
+        project_tags (
+          tag_id,
+          tags (*)
         )
       `)
-      .order('featured', { ascending: true, nullsFirst: false })
-      .order('created_at', { ascending: false })
+      .order('display_order', { ascending: true })
 
     if (error) {
       console.error('Error fetching projects:', error)
-      throw error
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    if (!projects) {
-      console.log('No projects found in database')
-      return NextResponse.json([])
-    }
-
-    const transformedProjects = projects.map(project => ({
-      ...project,
-      tools: project.tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
-      tags: project.tags?.map((pt: any) => pt.tag).filter(Boolean) || []
-    }))
+    // Transform the project data to match the expected format
+    const transformedProjects = projects.map(project => {
+      return {
+        ...project,
+        tools: project.project_tools.map(pt => pt.tools),
+        tags: project.project_tags.map(pt => pt.tags),
+        images: project.project_images
+      }
+    })
 
     return NextResponse.json(transformedProjects)
   } catch (error) {
     console.error('Error in GET /api/admin/projects:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch projects', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
 }
 
-// Create a new project
-export async function POST(req: NextRequest) {
-  try {
-    // Verify the request is from an authenticated admin
-    const isAdmin = await verifyAdmin()
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+// POST /api/admin/projects - Create a new project (admin only)
+export async function POST(request: NextRequest) {
+  if (!await verifyAdmin()) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-    // Safely parse the request body
-    let body: ProjectCreate
-    try {
-      body = await req.json()
-      console.log('Received data for new project')
-    } catch (parseError) {
-      console.error('Error parsing request body:', parseError)
-      return NextResponse.json({ 
-        error: 'Invalid request body', 
-        details: 'Could not parse JSON data' 
-      }, { status: 400 })
+  try {
+    const projectData = await request.json()
+    
+    // Extract the related data before inserting the project
+    const { images, tools, tags, ...project } = projectData
+    
+    // Convert featured to boolean if it's a number
+    if (typeof project.featured === 'number') {
+      project.featured = Boolean(project.featured)
     }
     
-    const { images, tool_ids, tag_ids, ...projectData } = body
-    
-    // Insert the base project data
-    const { data: project, error: projectError } = await supabaseAdmin
+    const supabaseAdmin = await getAdminClient()
+    const { data, error } = await supabaseAdmin
       .from('projects')
-      .insert({
-        title: projectData.title,
-        description: projectData.description,
-        slug: projectData.slug,
-        challenge: projectData.challenge,
-        approach: projectData.approach,
-        solution: projectData.solution,
-        results: projectData.results,
-        website_url: projectData.website_url,
-        featured: projectData.featured,
-        status: projectData.status || 'draft',
-        priority: projectData.priority
-      })
+      .insert([project])
       .select()
       .single()
 
-    if (projectError) {
-      console.error('Error creating project:', projectError)
-      return NextResponse.json({ 
-        error: 'Failed to create project', 
-        details: projectError.message 
-      }, { status: 500 })
+    if (error) {
+      console.error('Error creating project:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Handle related data
-    try {
-      if (images && images.length > 0) {
-        await updateProjectImages(project.id, images)
-      }
-      
-      if (tool_ids && tool_ids.length > 0) {
-        await updateProjectTools(project.id, tool_ids)
-      }
-      
-      if (tag_ids && tag_ids.length > 0) {
-        await updateProjectTags(project.id, tag_ids)
-      }
-    } catch (relationError) {
-      console.error('Error adding related data:', relationError)
-      return NextResponse.json({ 
-        error: 'Project was created but failed to add relationships', 
-        details: relationError instanceof Error ? relationError.message : 'Unknown error'
-      }, { status: 500 })
+    const projectId = data.id
+
+    // Handle related data (images, tools, tags)
+    if (images && images.length > 0) {
+      await updateProjectImages(projectId, images)
     }
 
-    // Fetch the complete project with relations
-    const { data: completeProject, error: fetchError } = await supabaseAdmin
-      .from('projects')
-      .select(`
-        *,
-        project_images (*),
-        tools:project_tools (
-          tool:tools (*)
-        ),
-        tags:project_tags (
-          tag:tags (*)
-        )
-      `)
-      .eq('id', project.id)
-      .single()
-
-    if (fetchError) {
-      console.error('Error fetching complete project:', fetchError)
-      return NextResponse.json({ 
-        error: 'Project was created but could not fetch the complete data', 
-        details: fetchError.message 
-      }, { status: 500 })
+    if (tools && tools.length > 0) {
+      await updateProjectTools(projectId, tools)
     }
 
-    const transformedProject = {
-      ...completeProject,
-      tools: completeProject.tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
-      tags: completeProject.tags?.map((pt: any) => pt.tag).filter(Boolean) || []
+    if (tags && tags.length > 0) {
+      await updateProjectTags(projectId, tags)
     }
 
-    return NextResponse.json(transformedProject)
+    return NextResponse.json({
+      message: 'Project created successfully',
+      id: projectId
+    })
   } catch (error) {
-    console.error('Error creating project:', error)
+    console.error('Error in POST /api/admin/projects:', error)
     return NextResponse.json(
-      { error: 'Failed to create project', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
 }
 
-// Update an existing project
-export async function PUT(req: NextRequest) {
-  try {
-    // Verify the request is from an authenticated admin
-    const isAdmin = await verifyAdmin()
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+// PUT /api/admin/projects - Update a project (admin only)
+export async function PUT(request: NextRequest) {
+  if (!await verifyAdmin()) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-    const { searchParams } = new URL(req.url)
-    const id = searchParams.get('id')
-    
+  try {
+    const projectData = await request.json()
+    const { id, images, tools, tags, ...project } = projectData
+
     if (!id) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
-
-    // Safely parse the request body
-    let body: ProjectUpdate
-    try {
-      body = await req.json()
-      console.log('Received update data for project:', id)
-    } catch (parseError) {
-      console.error('Error parsing request body:', parseError)
-      return NextResponse.json({ 
-        error: 'Invalid request body', 
-        details: 'Could not parse JSON data' 
-      }, { status: 400 })
-    }
     
-    const { images, tool_ids, tag_ids, ...updateData } = body
-
-    // First, verify the project exists
-    const { data: existingProject, error: checkError } = await supabaseAdmin
-      .from('projects')
-      .select('id')
-      .eq('id', id)
-      .single()
-      
-    if (checkError || !existingProject) {
-      console.error('Project not found:', id)
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    // Convert featured to boolean if it's a number or string
+    if (typeof project.featured === 'number' || typeof project.featured === 'string') {
+      project.featured = Boolean(project.featured)
     }
-    
-    // Update the project basic data
-    const { error: projectError } = await supabaseAdmin
+
+    const supabaseAdmin = await getAdminClient()
+    const { error } = await supabaseAdmin
       .from('projects')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString()
-      })
+      .update(project)
       .eq('id', id)
 
-    if (projectError) {
-      console.error('Error updating project:', projectError)
-      return NextResponse.json({ 
-        error: 'Failed to update project data', 
-        details: projectError.message 
-      }, { status: 500 })
+    if (error) {
+      console.error('Error updating project:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Handle related data updates
-    try {
-      if (images !== undefined) {
-        await updateProjectImages(id, images)
-      }
-      
-      if (tool_ids !== undefined) {
-        await updateProjectTools(id, tool_ids)
-      }
-      
-      if (tag_ids !== undefined) {
-        await updateProjectTags(id, tag_ids)
-      }
-    } catch (relationError) {
-      console.error('Error updating related data:', relationError)
-      return NextResponse.json({ 
-        error: 'Failed to update project relationships', 
-        details: relationError instanceof Error ? relationError.message : 'Unknown error'
-      }, { status: 500 })
+    // Handle related data (images, tools, tags)
+    if (images) {
+      await updateProjectImages(id, images)
     }
 
-    // Fetch the updated project with all relations
-    const { data: updatedProject, error: fetchError } = await supabaseAdmin
-      .from('projects')
-      .select(`
-        *,
-        project_images (*),
-        tools:project_tools (
-          tool:tools (*)
-        ),
-        tags:project_tags (
-          tag:tags (*)
-        )
-      `)
-      .eq('id', id)
-      .single()
-
-    if (fetchError) {
-      console.error('Error fetching updated project:', fetchError)
-      return NextResponse.json({ 
-        error: 'Project was updated but could not fetch the updated data', 
-        details: fetchError.message 
-      }, { status: 500 })
+    if (tools) {
+      await updateProjectTools(id, tools)
     }
 
-    const transformedProject = {
-      ...updatedProject,
-      tools: updatedProject.tools?.map((pt: any) => pt.tool).filter(Boolean) || [],
-      tags: updatedProject.tags?.map((pt: any) => pt.tag).filter(Boolean) || []
+    if (tags) {
+      await updateProjectTags(id, tags)
     }
 
-    return NextResponse.json(transformedProject)
+    return NextResponse.json({
+      message: 'Project updated successfully',
+      id
+    })
   } catch (error) {
-    console.error('Error updating project:', error)
+    console.error('Error in PUT /api/admin/projects:', error)
     return NextResponse.json(
-      { error: 'Failed to update project', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
 }
 
-// Delete a project
-export async function DELETE(req: NextRequest) {
-  try {
-    // Verify the request is from an authenticated admin
-    const isAdmin = await verifyAdmin()
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+// DELETE /api/admin/projects?id={id} - Delete a project (admin only)
+export async function DELETE(request: NextRequest) {
+  if (!await verifyAdmin()) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-    const { searchParams } = new URL(req.url)
+  try {
+    const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-    
+
     if (!id) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
 
-    // First check if the project exists
-    const { data: existingProject, error: checkError } = await supabaseAdmin
-      .from('projects')
-      .select('id')
-      .eq('id', id)
-      .single()
-      
-    if (checkError || !existingProject) {
-      console.error('Project not found:', id)
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
+    const supabaseAdmin = await getAdminClient()
     
-    // Delete related data first (due to foreign key constraints)
-    try {
-      // Delete project images
-      const { error: imagesError } = await supabaseAdmin
-        .from('project_images')
-        .delete()
-        .eq('project_id', id)
-      
-      if (imagesError) {
-        console.error('Error deleting project images:', imagesError)
-        throw imagesError
-      }
-      
-      // Delete project tools
-      const { error: toolsError } = await supabaseAdmin
-        .from('project_tools')
-        .delete()
-        .eq('project_id', id)
-      
-      if (toolsError) {
-        console.error('Error deleting project tools:', toolsError)
-        throw toolsError
-      }
-      
-      // Delete project tags
-      const { error: tagsError } = await supabaseAdmin
-        .from('project_tags')
-        .delete()
-        .eq('project_id', id)
-      
-      if (tagsError) {
-        console.error('Error deleting project tags:', tagsError)
-        throw tagsError
-      }
-    } catch (relationError) {
-      console.error('Error deleting related data:', relationError)
-      return NextResponse.json({ 
-        error: 'Failed to delete project relationships', 
-        details: relationError instanceof Error ? relationError.message : 'Unknown error'
-      }, { status: 500 })
-    }
+    // Delete related records first
+    // Images
+    await supabaseAdmin
+      .from('project_images')
+      .delete()
+      .eq('project_id', id)
     
-    // Now delete the project itself
-    const { error: deleteError } = await supabaseAdmin
+    // Tools
+    await supabaseAdmin
+      .from('project_tools')
+      .delete()
+      .eq('project_id', id)
+    
+    // Tags
+    await supabaseAdmin
+      .from('project_tags')
+      .delete()
+      .eq('project_id', id)
+    
+    // Finally delete the project
+    const { error } = await supabaseAdmin
       .from('projects')
       .delete()
       .eq('id', id)
-    
-    if (deleteError) {
-      console.error('Error deleting project:', deleteError)
-      return NextResponse.json({ 
-        error: 'Failed to delete project', 
-        details: deleteError.message 
-      }, { status: 500 })
+
+    if (error) {
+      console.error('Error deleting project:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Project deleted successfully'
-    })
+    return NextResponse.json({ message: 'Project deleted successfully' })
   } catch (error) {
-    console.error('Error deleting project:', error)
+    console.error('Error in DELETE /api/admin/projects:', error)
     return NextResponse.json(
-      { error: 'Failed to delete project', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

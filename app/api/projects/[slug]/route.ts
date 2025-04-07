@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase-admin"
+import { NextRequest, NextResponse } from "next/server"
+import { getAdminClient } from "@/lib/supabase-admin"
 import type { Project, Tool, Tag, ProjectImage } from "@/lib/types"
 
 interface ProjectWithRelations extends Project {
@@ -13,109 +13,58 @@ interface ProjectWithRelations extends Project {
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
+    const slug = params.slug
+    
+    if (!slug) {
+      return NextResponse.json({ error: "Missing project slug" }, { status: 400 })
+    }
+
+    const supabaseAdmin = await getAdminClient()
     const { data: project, error } = await supabaseAdmin
       .from('projects')
       .select(`
         *,
-        project_images (
-          id,
-          project_id,
-          url,
-          alt_text,
-          order_index,
-          created_at
-        ),
+        project_images (*),
         project_tools (
-          tool:tools (
-            id,
-            name,
-            created_at
-          )
+          tool_id,
+          tools (*)
         ),
         project_tags (
-          tag:tags (
-            id,
-            name,
-            created_at
-          )
+          tag_id,
+          tags (*)
         )
       `)
-      .eq('slug', params.slug)
-      .eq('status', 'published')
+      .eq('slug', slug)
       .single()
 
     if (error) {
-      console.error('Error fetching project:', error)
-      return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 })
+      console.error("Error fetching project:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+      return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
 
-    // Transform the data to match our expected format
-    const transformedProject = {
+    // Transform the project data to match the expected format
+    const formattedProject = {
       ...project,
-      project_images: project.project_images || [],
-      tools: project.project_tools?.map((pt: { tool: Tool }) => pt.tool) || [],
-      tags: project.project_tags?.map((pt: { tag: Tag }) => pt.tag) || []
+      tools: project.project_tools.map((pt: any) => pt.tools),
+      tags: project.project_tags.map((pt: any) => pt.tags),
+      images: project.project_images
     }
 
-    return NextResponse.json(transformedProject)
+    return NextResponse.json(formattedProject)
   } catch (error) {
-    console.error('Error in GET /api/projects/[slug]:', error)
-    return NextResponse.json({ error: 'Failed to fetch project' }, { status: 500 })
-  }
-}
-
-export async function PUT(
-  request: Request,
-  { params }: { params: { slug: string } }
-) {
-  try {
-    const body = await request.json()
-    const { data: project, error } = await supabaseAdmin
-      .from('projects')
-      .update(body)
-      .eq('slug', params.slug)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error updating project:', error)
-      return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
-    }
-
-    return NextResponse.json(project)
-  } catch (error) {
-    console.error('Error in PUT /api/projects/[slug]:', error)
-    return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
-  }
-}
-
-export async function DELETE(
-  request: Request,
-  { params }: { params: { slug: string } }
-) {
-  try {
-    const { error } = await supabaseAdmin
-      .from('projects')
-      .delete()
-      .eq('slug', params.slug)
-
-    if (error) {
-      console.error('Error deleting project:', error)
-      return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 })
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Error in DELETE /api/projects/[slug]:', error)
-    return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 })
+    console.error("Error in project slug API:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "An unknown error occurred" },
+      { status: 500 }
+    )
   }
 }
 

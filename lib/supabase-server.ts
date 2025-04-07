@@ -2,21 +2,25 @@
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { type Database } from './types/supabase'
+import { type Database } from './database.types'
 
-// Remote Supabase URL and key - hardcoded to ensure server components always use remote
-const REMOTE_SUPABASE_URL = "https://lgtldjzglbzlmmxphfxw.supabase.co"
-const REMOTE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxndGxkanpnbGJ6bG1teHBoZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3MTkyNTksImV4cCI6MjA1NzI5NTI1OX0.TH_nrrp0W0MIJ7jaFZGPSe1vIYc6S7Oydl0Kw8UNe-c"
+// Get Supabase URL with fallback
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lgtldjzglbzlmmxphfxw.supabase.co"
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxndGxkanpnbGJ6bG1teHBoZnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE3MTkyNTksImV4cCI6MjA1NzI5NTI1OX0.TH_nrrp0W0MIJ7jaFZGPSe1vIYc6S7Oydl0Kw8UNe-c"
 
-// Create a server-side Supabase client (for use in Server Components and Route Handlers)
+/**
+ * Creates a server-side Supabase client with cookie handling
+ * For use in Server Components and Route Handlers
+ * Uses the anonymous key by default, but with server-side auth
+ */
 export async function createServerSupabaseClient() {
   const cookieStore = cookies()
   
-  console.log(`Creating server Supabase client with remote URL: ${REMOTE_SUPABASE_URL.substring(0, 20)}...`)
+  console.log(`Creating server Supabase client with URL: ${SUPABASE_URL.substring(0, 20)}...`)
   
   return createServerClient<Database>(
-    REMOTE_SUPABASE_URL,
-    REMOTE_SUPABASE_ANON_KEY,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         get(name: string) {

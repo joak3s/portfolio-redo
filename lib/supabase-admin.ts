@@ -1,3 +1,5 @@
+'use server'
+
 import { createClient } from '@supabase/supabase-js'
 import { type Database } from './database.types'
 
@@ -22,6 +24,11 @@ const getSupabaseUrl = () => {
 
 // More robust service role key validation
 const getServiceRoleKey = () => {
+  // Verify this code is running on the server
+  if (typeof window !== 'undefined') {
+    throw new Error('SECURITY ERROR: Attempted to access service role key in browser environment')
+  }
+
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!key) {
     console.error('FATAL: Missing SUPABASE_SERVICE_ROLE_KEY environment variable')
@@ -78,9 +85,18 @@ const createCustomFetch = () => {
   };
 };
 
-// Admin client with service role for server-side operations only
-export const createAdminClient = () => {
+/**
+ * Creates an admin Supabase client with service role permissions
+ * SECURITY WARNING: This client should ONLY be used in server-side code
+ * Never expose the service role key to the client
+ */
+const createAdminClient = () => {
   try {
+    // Double-check we're on the server
+    if (typeof window !== 'undefined') {
+      throw new Error('SECURITY ERROR: Admin client can only be used server-side')
+    }
+
     const url = getSupabaseUrl()
     const key = getServiceRoleKey()
     
@@ -109,11 +125,27 @@ export const createAdminClient = () => {
   }
 }
 
-// Export singleton admin client for server-side use
-export const supabaseAdmin = createAdminClient()
+// Singleton instance (private to this module)
+let _supabaseAdminInstance: ReturnType<typeof createAdminClient> | null = null;
 
-// Utility to test the connection
-export const testSupabaseConnection = async () => {
+/**
+ * Gets a Supabase admin client instance for server-side use only
+ * This is a server action that returns a client instance
+ */
+export async function getAdminClient() {
+  if (!_supabaseAdminInstance) {
+    _supabaseAdminInstance = createAdminClient();
+  }
+  return _supabaseAdminInstance;
+}
+
+/**
+ * Test the Supabase connection with the admin client
+ * Server action that returns the connection status
+ */
+export async function testConnection() {
+  const supabaseAdmin = await getAdminClient();
+  
   try {
     // Try a simple query to check connection
     const { data, error } = await supabaseAdmin
@@ -144,38 +176,43 @@ export const testSupabaseConnection = async () => {
   }
 }
 
-// Utility function to handle retries for Supabase queries
-export const withRetry = async <T>(
-  queryFn: () => Promise<{ data: T | null; error: any }> | { then(onfulfilled: (value: { data: T | null; error: any }) => any): any },
-  { maxRetries = 3, retryDelay = 1000 } = {}
-): Promise<{ data: T | null; error: any }> => {
-  let lastError = null
+/**
+ * Execute a query with retry logic (server-side only)
+ */
+export async function executeWithRetry<T>(
+  queryFn: (client: ReturnType<typeof createAdminClient>) => Promise<{ data: T | null; error: any }>,
+  options: { maxRetries?: number, retryDelay?: number } = {}
+): Promise<{ data: T | null; error: any }> {
+  const { maxRetries = 3, retryDelay = 1000 } = options;
+  const supabaseAdmin = await getAdminClient();
+  
+  let lastError = null;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const result = await queryFn()
+      const result = await queryFn(supabaseAdmin);
       
       if (!result.error) {
-        return result
+        return result;
       }
       
-      lastError = result.error
-      console.warn(`Query attempt ${attempt}/${maxRetries} failed:`, result.error)
+      lastError = result.error;
+      console.warn(`Query attempt ${attempt}/${maxRetries} failed:`, result.error);
       
       // If not the last attempt, wait before retrying
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt))
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
       }
     } catch (error) {
-      lastError = error
-      console.warn(`Query attempt ${attempt}/${maxRetries} failed with exception:`, error)
+      lastError = error;
+      console.warn(`Query attempt ${attempt}/${maxRetries} failed with exception:`, error);
       
       // If not the last attempt, wait before retrying
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt))
+        await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
       }
     }
   }
   
-  return { data: null, error: lastError }
+  return { data: null, error: lastError };
 } 

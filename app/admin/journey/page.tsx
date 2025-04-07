@@ -15,18 +15,38 @@ import { Loader2, Plus, Edit, Trash2, X, ArrowLeft, Upload, Image as ImageIcon, 
 import { useToast } from "@/components/ui/use-toast"
 import { supabaseClient } from "@/lib/supabase-browser"
 import Image from "next/image"
-import type { JourneyEntry } from "@/lib/types/journey"
+import type { CreateJourneyInput } from '@/lib/types/journey'
+import type { Database } from '@/lib/database.types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { z } from "zod"
 import Link from "next/link"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
+// Actions
+import { 
+  getJourneyEntries, 
+  createJourneyEntry, 
+  updateJourneyEntry, 
+  deleteJourneyEntry,
+  addJourneyImage,
+  deleteJourneyImage,
+  updateJourneyImageOrder
+} from '@/app/actions/admin'
+
+// Types
+import type { JourneyEntry, JourneyImage } from '@/lib/types/journey'
+
+// Define our local types based on database types
+type LocalJourneyImage = Database['public']['Tables']['journey_images']['Row'];
+type LocalJourneyEntry = Database['public']['Tables']['journey']['Row'] & {
+  journey_images?: LocalJourneyImage[];
+}
+
 export default function AdminJourneyPage() {
-  const [journeyEntries, setJourneyEntries] = useState<JourneyEntry[]>([])
+  const [journeyEntries, setJourneyEntries] = useState<LocalJourneyEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [title, setTitle] = useState("")
@@ -58,6 +78,20 @@ export default function AdminJourneyPage() {
   const [isReordering, setIsReordering] = useState(false)
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [newEntry, setNewEntry] = useState<CreateJourneyInput>({
+    title: '',
+    subtitle: '',
+    year: '',
+    description: '',
+    skills: [],
+    icon: '',
+    color: '#3b82f6',
+    display_order: 1
+  })
+  const [selectedEntry, setSelectedEntry] = useState<LocalJourneyEntry | null>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [newImageUrl, setNewImageUrl] = useState('')
+  const [newImageAlt, setNewImageAlt] = useState('')
 
   // Fetch journey entries
   useEffect(() => {
@@ -86,46 +120,8 @@ export default function AdminJourneyPage() {
       setIsLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabaseClient
-        .from("journey")
-        .select("*")
-        .order("display_order", { ascending: true })
-
-      if (fetchError) throw new Error(fetchError.message)
-
-      // Now fetch all images for these journey entries
-      const journeyIds = data.map(entry => entry.id)
-
-      let journeyImages: Record<string, any[]> = {}
-
-      if (journeyIds.length > 0) {
-        const { data: imagesData, error: imagesError } = await supabaseClient
-          .from("journey_images")
-          .select("*")
-          .in("journey_id", journeyIds)
-          .order("order_index", { ascending: true })
-
-        if (imagesError) {
-          console.error("Error fetching journey images:", imagesError)
-        } else {
-          // Group images by journey_id
-          journeyImages = (imagesData || []).reduce((acc, image) => {
-            if (!acc[image.journey_id]) {
-              acc[image.journey_id] = []
-            }
-            acc[image.journey_id].push(image)
-            return acc
-          }, {} as Record<string, any[]>)
-        }
-      }
-
-      // Combine journey entries with their images
-      const entriesWithImages = data.map(entry => ({
-        ...entry,
-        journey_images: journeyImages[entry.id] || []
-      }))
-
-      setJourneyEntries(entriesWithImages)
+      const entries = await getJourneyEntries()
+      setJourneyEntries(entries)
       
       // Reset retry count on success
       setRetryCount(0)
@@ -248,7 +244,7 @@ export default function AdminJourneyPage() {
     setIsDialogOpen(true)
   }
 
-  const handleEdit = (entry: JourneyEntry) => {
+  const handleEdit = (entry: LocalJourneyEntry) => {
     setCurrentId(entry.id)
     setTitle(entry.title)
     setSubtitle(entry.subtitle || '')
@@ -628,7 +624,7 @@ export default function AdminJourneyPage() {
     }
   }
   
-  const handleReorderImages = (currentEntry: JourneyEntry) => {
+  const handleReorderImages = (currentEntry: LocalJourneyEntry) => {
     if (!currentEntry?.journey_images?.length) return
     
     // Initialize reorderingImages with the current images

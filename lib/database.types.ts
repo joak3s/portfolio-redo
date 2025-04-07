@@ -6,36 +6,119 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
-      project_images: {
+      journey: {
         Row: {
-          alt_text: string | null
-          created_at: string
           id: string
-          order_index: number
-          project_id: string | null
-          updated_at: string
-          url: string
+          title: string
+          subtitle: string | null
+          year: string
+          description: string
+          skills: string[] | null
+          icon: string | null
+          color: string | null
+          display_order: number
+          created_at: string
+          updated_at: string | null
         }
         Insert: {
-          alt_text?: string | null
-          created_at?: string
           id?: string
-          order_index?: number
-          project_id?: string | null
-          updated_at?: string
-          url: string
+          title: string
+          subtitle?: string | null
+          year: string
+          description: string
+          skills?: string[] | null
+          icon?: string | null
+          color?: string | null
+          display_order: number
+          created_at?: string
+          updated_at?: string | null
         }
         Update: {
-          alt_text?: string | null
-          created_at?: string
           id?: string
+          title?: string
+          subtitle?: string | null
+          year?: string
+          description?: string
+          skills?: string[] | null
+          icon?: string | null
+          color?: string | null
+          display_order?: number
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      journey_images: {
+        Row: {
+          id: string
+          journey_id: string
+          url: string
+          alt_text: string | null
+          order_index: number
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          journey_id: string
+          url: string
+          alt_text?: string | null
           order_index?: number
-          project_id?: string | null
-          updated_at?: string
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          journey_id?: string
           url?: string
+          alt_text?: string | null
+          order_index?: number
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journey_images_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "journey"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      project_images: {
+        Row: {
+          id: string
+          project_id: string
+          url: string
+          alt_text: string | null
+          is_cover: boolean
+          order_index: number
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          url: string
+          alt_text?: string | null
+          is_cover?: boolean
+          order_index?: number
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          url?: string
+          alt_text?: string | null
+          is_cover?: boolean
+          order_index?: number
+          created_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -49,19 +132,22 @@ export type Database = {
       }
       project_tags: {
         Row: {
-          created_at: string
+          id: string
           project_id: string
           tag_id: string
+          created_at: string
         }
         Insert: {
-          created_at?: string
+          id?: string
           project_id: string
           tag_id: string
+          created_at?: string
         }
         Update: {
-          created_at?: string
+          id?: string
           project_id?: string
           tag_id?: string
+          created_at?: string
         }
         Relationships: [
           {
@@ -82,19 +168,22 @@ export type Database = {
       }
       project_tools: {
         Row: {
-          created_at: string
+          id: string
           project_id: string
           tool_id: string
+          created_at: string
         }
         Insert: {
-          created_at?: string
+          id?: string
           project_id: string
           tool_id: string
+          created_at?: string
         }
         Update: {
-          created_at?: string
+          id?: string
           project_id?: string
           tool_id?: string
+          created_at?: string
         }
         Relationships: [
           {
@@ -115,88 +204,91 @@ export type Database = {
       }
       projects: {
         Row: {
-          approach: string | null
-          challenge: string | null
-          created_at: string
-          description: string
-          featured: number | null
           id: string
-          priority: number | null
-          results: string | null
-          slug: string
-          solution: string | null
-          status: string | null
           title: string
-          updated_at: string
-          website_url: string | null
+          slug: string
+          subtitle: string | null
+          description: string
+          long_description: string | null
+          featured: boolean
+          github_url: string | null
+          live_url: string | null
+          display_order: number
+          created_at: string
+          updated_at: string | null
         }
         Insert: {
-          approach?: string | null
-          challenge?: string | null
-          created_at?: string
-          description: string
-          featured?: number | null
           id?: string
-          priority?: number | null
-          results?: string | null
-          slug: string
-          solution?: string | null
-          status?: string | null
           title: string
-          updated_at?: string
-          website_url?: string | null
+          slug: string
+          subtitle?: string | null
+          description: string
+          long_description?: string | null
+          featured?: boolean
+          github_url?: string | null
+          live_url?: string | null
+          display_order?: number
+          created_at?: string
+          updated_at?: string | null
         }
         Update: {
-          approach?: string | null
-          challenge?: string | null
-          created_at?: string
-          description?: string
-          featured?: number | null
           id?: string
-          priority?: number | null
-          results?: string | null
-          slug?: string
-          solution?: string | null
-          status?: string | null
           title?: string
-          updated_at?: string
-          website_url?: string | null
+          slug?: string
+          subtitle?: string | null
+          description?: string
+          long_description?: string | null
+          featured?: boolean
+          github_url?: string | null
+          live_url?: string | null
+          display_order?: number
+          created_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
       tags: {
         Row: {
-          created_at: string
           id: string
           name: string
+          created_at: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
           id?: string
           name: string
+          created_at?: string
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
           id?: string
           name?: string
+          created_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
       tools: {
         Row: {
-          created_at: string
           id: string
           name: string
+          icon: string | null
+          created_at: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
           id?: string
           name: string
+          icon?: string | null
+          created_at?: string
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
           id?: string
           name?: string
+          icon?: string | null
+          created_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
