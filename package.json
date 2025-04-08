@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "prisma:setup": "node scripts/setup-env.js",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "node scripts/prisma-migrate.js",
