@@ -4,6 +4,8 @@ import { ProjectImage } from '@/lib/types'
 
 export async function POST(request: NextRequest, { params }: { params: { slug: string } }) {
   try {
+    const supabaseAdmin = await getAdminClient();
+    
     const formData = await request.formData()
     const files = formData.getAll('files') as File[]
 
@@ -73,9 +75,10 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
   }
 }
 
-export async function DELETE(request: NextRequest, {
-  const supabaseAdmin = await getAdminClient(); params }: { params: { slug: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { slug: string } }) {
   try {
+    const supabaseAdmin = await getAdminClient();
+    
     const { imageUrl } = await request.json()
 
     // Get project ID from slug

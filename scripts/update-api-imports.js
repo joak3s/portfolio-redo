@@ -42,25 +42,36 @@ function updateFile(filePath) {
         `import { getAdminClient } from '@/lib/supabase-admin'`
       );
       
-      // Find all function exports and add supabaseAdmin initialization
-      const functionMatches = content.match(/export\s+async\s+function\s+\w+\s*\([^)]*\)\s*\{/g);
+      // Find all function exports
+      const functionRegex = /export\s+async\s+function\s+\w+\s*\([^{]*\)\s*{/g;
+      const functionMatches = [...content.matchAll(functionRegex)];
       
-      if (functionMatches) {
-        functionMatches.forEach(match => {
-          const functionStart = content.indexOf(match);
-          const openBraceIndex = content.indexOf('{', functionStart) + 1;
+      if (functionMatches.length > 0) {
+        // Process each function match from the end to avoid offset issues
+        for (let i = functionMatches.length - 1; i >= 0; i--) {
+          const match = functionMatches[i];
+          const functionStart = match.index;
+          const functionHeader = match[0];
+          const openBraceIndex = functionStart + functionHeader.length;
           
-          // Check if we need to insert the initialization
-          const functionBody = content.substring(openBraceIndex, openBraceIndex + 200); // Check next 200 chars
+          // Find the first non-whitespace character after the opening brace
+          const afterBraceContent = content.substring(openBraceIndex);
+          const firstCodeMatch = afterBraceContent.match(/^\s*([^\s])/);
           
-          if (!functionBody.includes('await getAdminClient()') && functionBody.includes('supabaseAdmin')) {
-            // Insert the initialization after the opening brace
-            const insertPos = openBraceIndex;
-            const toInsert = '\n  const supabaseAdmin = await getAdminClient();';
+          // If the function body contains supabaseAdmin but not getAdminClient
+          if (
+            afterBraceContent.includes('supabaseAdmin') && 
+            !afterBraceContent.includes('await getAdminClient')
+          ) {
+            // Insert the initialization at the beginning of the function body
+            // Right after the opening brace and any whitespace
+            const insertPos = openBraceIndex + (firstCodeMatch ? firstCodeMatch.index : 0);
+            const indent = '  '; // Standard indent
+            const toInsert = `\n${indent}const supabaseAdmin = await getAdminClient();\n${indent}`;
             
             content = content.substring(0, insertPos) + toInsert + content.substring(insertPos);
           }
-        });
+        }
       }
       
       // Write updated content back to file

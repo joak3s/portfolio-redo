@@ -30,10 +30,11 @@ async function saveProjects(projects: Project[]): Promise<void> {
 // Get a single project by ID
 export async function GET(
   request: Request,
-  {
-  const supabaseAdmin = await getAdminClient(); params }: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
+    const supabaseAdmin = await getAdminClient();
+    
     const { data: project, error } = await supabaseAdmin
       .from('projects')
       .select(`
@@ -73,6 +74,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const supabaseAdmin = await getAdminClient();
+    
     console.log('Updating project:', params.id)
     const body: ProjectUpdate = await request.json()
     const { images, tool_ids, tag_ids, ...updateData } = body
@@ -233,6 +236,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const supabaseAdmin = await getAdminClient();
+    
     console.log('Deleting project:', params.id)
     
     // Delete project (cascade will handle related records)
