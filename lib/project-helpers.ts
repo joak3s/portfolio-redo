@@ -39,8 +39,7 @@ export async function updateProjectImages(projectId: string, images: any[]) {
       project_id: projectId,
       url: img.url,
       alt_text: img.alt_text || '',
-      order_index: img.order_index || index,
-      is_cover: img.is_cover || false
+      order_index: img.order_index || index
     }))
 
     const { error: insertError } = await supabaseAdmin

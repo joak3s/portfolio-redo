@@ -86,11 +86,15 @@ export async function POST(request: NextRequest) {
     const projectData = await request.json()
     
     // Extract the related data before inserting the project
-    const { images, tools, tags, ...project } = projectData
+    const { images, tools, tags, tool_ids, tag_ids, ...project } = projectData
     
-    // Convert featured to boolean if it's a number
-    if (typeof project.featured === 'number') {
-      project.featured = Boolean(project.featured)
+    // Ensure featured is an integer
+    if (typeof project.featured === 'boolean') {
+      project.featured = project.featured ? 1 : 0
+    } else if (typeof project.featured === 'string') {
+      // Try to parse as integer first
+      const parsed = parseInt(project.featured, 10)
+      project.featured = !isNaN(parsed) ? parsed : (project.featured === 'true' ? 1 : 0)
     }
     
     const supabaseAdmin = await getAdminClient()
@@ -112,12 +116,20 @@ export async function POST(request: NextRequest) {
       await updateProjectImages(projectId, images)
     }
 
-    if (tools && tools.length > 0) {
-      await updateProjectTools(projectId, tools)
+    // Handle tools from either tools or tool_ids (prioritize tool_ids if both are present)
+    if (tool_ids && tool_ids.length > 0) {
+      await updateProjectTools(projectId, tool_ids)
+    } else if (tools && tools.length > 0) {
+      const toolIds = tools.map((tool: any) => typeof tool === 'string' ? tool : tool.id)
+      await updateProjectTools(projectId, toolIds)
     }
 
-    if (tags && tags.length > 0) {
-      await updateProjectTags(projectId, tags)
+    // Handle tags from either tags or tag_ids (prioritize tag_ids if both are present)
+    if (tag_ids && tag_ids.length > 0) {
+      await updateProjectTags(projectId, tag_ids)
+    } else if (tags && tags.length > 0) {
+      const tagIds = tags.map((tag: any) => typeof tag === 'string' ? tag : tag.id)
+      await updateProjectTags(projectId, tagIds)
     }
 
     return NextResponse.json({
@@ -141,15 +153,20 @@ export async function PUT(request: NextRequest) {
 
   try {
     const projectData = await request.json()
-    const { id, images, tools, tags, ...project } = projectData
+    // Extract tags, tools and images before updating the project
+    const { id, images, tools, tags, tool_ids, tag_ids, ...project } = projectData
 
     if (!id) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 })
     }
     
-    // Convert featured to boolean if it's a number or string
-    if (typeof project.featured === 'number' || typeof project.featured === 'string') {
-      project.featured = Boolean(project.featured)
+    // Ensure featured is an integer
+    if (typeof project.featured === 'boolean') {
+      project.featured = project.featured ? 1 : 0
+    } else if (typeof project.featured === 'string') {
+      // Try to parse as integer first
+      const parsed = parseInt(project.featured, 10)
+      project.featured = !isNaN(parsed) ? parsed : (project.featured === 'true' ? 1 : 0)
     }
 
     const supabaseAdmin = await getAdminClient()
@@ -168,12 +185,20 @@ export async function PUT(request: NextRequest) {
       await updateProjectImages(id, images)
     }
 
-    if (tools) {
-      await updateProjectTools(id, tools)
+    // Handle tools from either tools or tool_ids (prioritize tool_ids if both are present)
+    if (tool_ids && tool_ids.length > 0) {
+      await updateProjectTools(id, tool_ids)
+    } else if (tools && tools.length > 0) {
+      const toolIds = tools.map((tool: any) => typeof tool === 'string' ? tool : tool.id)
+      await updateProjectTools(id, toolIds)
     }
 
-    if (tags) {
-      await updateProjectTags(id, tags)
+    // Handle tags from either tags or tag_ids (prioritize tag_ids if both are present)
+    if (tag_ids && tag_ids.length > 0) {
+      await updateProjectTags(id, tag_ids)
+    } else if (tags && tags.length > 0) {
+      const tagIds = tags.map((tag: any) => typeof tag === 'string' ? tag : tag.id)
+      await updateProjectTags(id, tagIds)
     }
 
     return NextResponse.json({

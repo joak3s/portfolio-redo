@@ -1,42 +1,95 @@
-import { NextResponse } from 'next/server'
-import { getAdminClient } from '@/lib/supabase-admin'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+// Define types for project and related data
+interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: Date;
+  updated_at: Date | null;
+}
+
+interface Tool {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+  created_at: Date;
+  updated_at: Date | null;
+}
+
+interface ProjectTag {
+  tag: Tag;
+}
+
+interface ProjectTool {
+  tool: Tool;
+}
+
+interface ProjectWithRelations {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  summary: string | null;
+  featured: boolean;
+  status: string;
+  created_at: Date;
+  updated_at: Date | null;
+  images: {
+    id: string;
+    url: string;
+    alt_text: string | null;
+    order_index: number;
+    project_id: string;
+    created_at: Date;
+    updated_at: Date | null;
+  }[];
+  tags: ProjectTag[];
+  tools: ProjectTool[];
+}
+
+// GET /api/projects - Get all projects (or featured projects if filtered)
+export async function GET(request: NextRequest) {
   try {
-    const supabaseAdmin = await getAdminClient()
-    const { data: projects, error } = await supabaseAdmin
-      .from('projects')
-      .select(`
-        *,
-        project_images (*),
-        project_tools (
-          tool_id,
-          tools (*)
-        ),
-        project_tags (
-          tag_id,
-          tags (*)
-        )
-      `)
-      .eq('featured', true)
-      .order('display_order', { ascending: true })
+    const { searchParams } = new URL(request.url)
+    const featured = searchParams.get('featured')
+    
+    const projects = await prisma.project.findMany({
+      where: featured === 'true' ? { featured: true } : undefined,
+      include: {
+        images: {
+          orderBy: {
+            order_index: 'asc'
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
+        },
+        tools: {
+          include: {
+            tool: true
+          }
+        }
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    }) as ProjectWithRelations[]
 
-    if (error) {
-      console.error('Error fetching projects:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    // Transform the project data to match the expected format
-    const transformedProjects = projects.map(project => {
+    // Transform data to match the expected format for the frontend
+    const formattedProjects = projects.map((project: ProjectWithRelations) => {
       return {
         ...project,
-        tools: project.project_tools.map((pt: any) => pt.tools),
-        tags: project.project_tags.map((pt: any) => pt.tags),
-        images: project.project_images
+        tags: project.tags.map((pt: ProjectTag) => pt.tag),
+        tools: project.tools.map((pt: ProjectTool) => pt.tool)
       }
     })
 
-    return NextResponse.json(transformedProjects)
+    return NextResponse.json(formattedProjects)
   } catch (error) {
     console.error('Error in GET /api/projects:', error)
     return NextResponse.json(
