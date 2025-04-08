@@ -139,10 +139,6 @@ export async function getAdminClient() {
   return _supabaseAdminInstance;
 }
 
-// For backwards compatibility with existing imports
-// IMPORTANT: This client is instantiated immediately and should be used carefully
-export const supabaseAdmin = createAdminClient();
-
 /**
  * Test the Supabase connection with the admin client
  * Server action that returns the connection status

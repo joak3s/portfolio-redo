@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx prisma generate && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
@@ -13,7 +13,8 @@
     "prisma:migrate": "node scripts/prisma-migrate.js",
     "prisma:migrate:name": "node scripts/prisma-migrate.js --name",
     "prisma:studio": "npx prisma studio",
-    "db:cleanup": "node scripts/cleanup-db.js"
+    "db:cleanup": "node scripts/cleanup-db.js",
+    "update-api-imports": "node scripts/update-api-imports.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "1.2.2",

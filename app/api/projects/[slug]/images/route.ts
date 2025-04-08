@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getAdminClient } from '@/lib/supabase-admin'
 import { ProjectImage } from '@/lib/types'
 
 export async function POST(request: NextRequest, { params }: { params: { slug: string } }) {
@@ -73,7 +73,8 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { slug: string } }) {
+export async function DELETE(request: NextRequest, {
+  const supabaseAdmin = await getAdminClient(); params }: { params: { slug: string } }) {
   try {
     const { imageUrl } = await request.json()
 

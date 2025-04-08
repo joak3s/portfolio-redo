@@ -267,3 +267,38 @@ Recent improvements to the Supabase integration:
 
 - **Error Handling**: Improved error handling throughout the application with better error messages and graceful fallbacks.
 
+# Deployment Guide
+
+## Fixing Vercel Deployment Issues
+
+If you encounter these errors during deployment:
+
+1. **Supabase Admin Import Error**: 
+   - Error: `Attempted import error: 'supabaseAdmin' is not exported from '@/lib/supabase-admin'`
+   - Fix: Run `npm run update-api-imports` to update all API files to use `getAdminClient()` instead of directly importing `supabaseAdmin`
+
+2. **Prisma Generation Error**:
+   - Error: `Prisma has detected that this project was built on Vercel, which caches dependencies`
+   - Fix: 
+     - We've updated the build process to include Prisma generation
+     - Added `"postinstall": "prisma generate"` to package.json
+     - Modified build script to `"build": "prisma generate && next build"`
+     - Added vercel.json with explicit buildCommand
+
+## Deployment Steps
+
+1. **Before deploying**:
+   - Run `npm run update-api-imports` locally to fix any Supabase admin import issues
+   - Commit and push the changes
+
+2. **Environment Variables**:
+   Make sure these are set in your Vercel project:
+   - `DATABASE_URL` - Your Supabase PostgreSQL connection string
+   - `DIRECT_URL` - Direct Supabase database URL
+   - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon/public key
+   - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (for admin operations)
+   
+3. **Deployment**:
+   The project should now deploy successfully to Vercel with the proper Prisma setup.
+

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { ProjectImage } from '@/lib/types'
+import { getAdminClient } from '@/lib/supabase-admin'
+
+// Define a simpler interface for image data returned to the client
+interface ImageResponse {
+  url: string
+  alt: string
+  caption?: string
+}
 
 export async function POST(
   request: NextRequest,
@@ -8,6 +14,7 @@ export async function POST(
 ) {
   try {
     const projectId = context.params.id
+    const supabaseAdmin = await getAdminClient()
 
     // Validate project ID
     if (!projectId) {
@@ -50,7 +57,7 @@ export async function POST(
       )
     }
 
-    const newImages: ProjectImage[] = []
+    const newImages: ImageResponse[] = []
 
     // Process each file
     for (let i = 0; i < files.length; i++) {
@@ -84,7 +91,7 @@ export async function POST(
         .getPublicUrl(filename)
 
       // Add to images array
-      const imageData = {
+      const imageData: ImageResponse = {
         url: publicUrl,
         alt: alt || file.name,
         caption: caption || undefined
@@ -97,8 +104,8 @@ export async function POST(
         .insert({
           project_id: projectId,
           url: publicUrl,
-          alt: alt || file.name,
-          caption: caption
+          alt_text: alt || file.name,
+          order_index: i // Use index as order_index
         })
 
       if (dbError) {
@@ -122,6 +129,7 @@ export async function DELETE(
 ) {
   try {
     const projectId = context.params.id
+    const supabaseAdmin = await getAdminClient()
     const { searchParams } = new URL(request.url)
     const imageUrl = searchParams.get('url')
 

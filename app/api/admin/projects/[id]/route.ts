@@ -8,7 +8,7 @@ import {
   updateProjectTools,
   updateProjectTags,
 } from '@/lib/project-helpers'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getAdminClient } from '@/lib/supabase-admin'
 
 const dataFilePath = path.join(process.cwd(), 'public', 'data', 'projects.json')
 const projectsDirectory = path.join(process.cwd(), 'public', 'projects')
@@ -30,7 +30,8 @@ async function saveProjects(projects: Project[]): Promise<void> {
 // Get a single project by ID
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  {
+  const supabaseAdmin = await getAdminClient(); params }: { params: { id: string } }
 ) {
   try {
     const { data: project, error } = await supabaseAdmin

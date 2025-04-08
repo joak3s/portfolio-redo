@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getAdminClient } from '@/lib/supabase-admin'
 
 export async function GET() {
+  const supabaseAdmin = await getAdminClient();
   try {
     const { data: tools, error } = await supabaseAdmin
       .from('tools')
