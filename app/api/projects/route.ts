@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@supabase/supabase-js'
 
 // Define types for project and related data
 interface Tag {
@@ -50,50 +51,44 @@ interface ProjectWithRelations {
   tools: ProjectTool[];
 }
 
-// GET /api/projects - Get all projects (or featured projects if filtered)
-export async function GET(request: NextRequest) {
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+// Enable edge runtime for better performance
+export const runtime = 'edge'
+
+/**
+ * GET endpoint to retrieve all projects
+ * @param request - The incoming request
+ * @returns List of projects with basic info (id, title, slug)
+ */
+export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const featured = searchParams.get('featured')
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, title, slug, featured')
+      .order('featured', { ascending: false })
+      .order('title', { ascending: true })
     
-    const projects = await prisma.project.findMany({
-      where: featured === 'true' ? { featured: true } : undefined,
-      include: {
-        images: {
-          orderBy: {
-            order_index: 'asc'
-          }
-        },
-        tags: {
-          include: {
-            tag: true
-          }
-        },
-        tools: {
-          include: {
-            tool: true
-          }
-        }
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    }) as ProjectWithRelations[]
-
-    // Transform data to match the expected format for the frontend
-    const formattedProjects = projects.map((project: ProjectWithRelations) => {
-      return {
-        ...project,
-        tags: project.tags.map((pt: ProjectTag) => pt.tag),
-        tools: project.tools.map((pt: ProjectTool) => pt.tool)
-      }
+    if (error) {
+      console.error('Error fetching projects:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch projects' },
+        { status: 500 }
+      )
+    }
+    
+    return NextResponse.json({
+      projects: data || [],
+      count: data?.length || 0
     })
-
-    return NextResponse.json(formattedProjects)
-  } catch (error) {
-    console.error('Error in GET /api/projects:', error)
+  } catch (error: any) {
+    console.error('Error in projects lookup:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: error.message || 'An unexpected error occurred' },
       { status: 500 }
     )
   }
