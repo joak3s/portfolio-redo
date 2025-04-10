@@ -7,6 +7,7 @@ import { ChevronDown, Download, Mail, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Testimonials } from '@/components/testimonials-grid'
 import JourneyTimeline from '@/components/journey/journey-timeline'
+import GenerateResumePDF from '@/components/GenerateResumePDF'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useJourneyMilestones } from '@/hooks/use-journey'
 
@@ -146,7 +147,7 @@ export default function AboutPage() {
                 </Button>
 
                 <Button variant="outline" asChild>
-                  <Link href="/Jordan-Oakes-Resume.pdf" target="_blank">
+                  <Link href="/resume/Jordan Oakes - Resume.pdf" target="_blank">
                     <Download className="mr-2 h-4 w-4" />
                     Resume
                   </Link>

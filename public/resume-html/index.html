@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jordan Oakes - Resume</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #523aed;
+      --muted: #64748b;
+      --text: #334155;
+      --border: #e2e8f0;
+      --background: #ffffff;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      background-color: var(--background);
+      padding: 40px 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    header {
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 15px;
+    }
+    
+    .name {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    
+    .title {
+      font-size: 16px;
+      color: var(--primary);
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+    
+    .contact-info {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    
+    section {
+      margin-bottom: 20px;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--primary);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 5px;
+    }
+    
+    .section-content {
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    
+    .experience-item {
+      margin-bottom: 15px;
+    }
+    
+    .experience-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    
+    .experience-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    
+    ul {
+      padding-left: 20px;
+      margin-top: 6px;
+    }
+    
+    li {
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+    
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+    
+    .skill-category {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 3px;
+    }
+    
+    .print-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .print-button:hover {
+      background-color: #6d28d9;
+    }
+    
+    @media print {
+      body {
+        padding: 0;
+        font-size: 12px;
+      }
+      
+      .print-button {
+        display: none;
+      }
+      
+      header {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+      }
+      
+      .name {
+        font-size: 24px;
+      }
+      
+      .title {
+        font-size: 14px;
+      }
+      
+      .section-title {
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+      
+      .section-content {
+        font-size: 12px;
+      }
+      
+      .experience-title {
+        font-size: 13px;
+      }
+      
+      .experience-subtitle {
+        font-size: 12px;
+      }
+      
+      li {
+        font-size: 11px;
+        margin-bottom: 3px;
+      }
+      
+      section {
+        margin-bottom: 15px;
+      }
+      
+      @page {
+        margin: 0.5cm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="print-button" onclick="window.print()">Print Resume</button>
+  
+  <div class="container">
+    <header>
+      <h1 class="name">JORDAN OAKES</h1>
+      <h2 class="title">UX/UI DESIGNER | PRODUCT DESIGNER | AI SPECIALIST</h2>
+      <p class="contact-info">(425) 753-9977 • jordyoakes@gmail.com • www.joakes.me</p>
+    </header>
+    
+    <section>
+      <h3 class="section-title">SUMMARY</h3>
+      <p class="section-content">
+        Multi-disciplinary designer and developer specializing in user-centered digital experiences with over four years of UX/UI expertise. Combines cognitive science background with technical development skills to bridge human needs with technological innovation. Proven ability to deliver intuitive, accessible solutions across web and mobile platforms that enhance user engagement while aligning with business goals. Passionate about AI integration, research-driven design, and iterative processes.
+      </p>
+    </section>
+    
+    <section>
+      <h3 class="section-title">CORE COMPETENCIES</h3>
+      <ul>
+        <li>UX/UI Design: Wireframing, Prototyping, User Flows, Interaction Design, Usability Testing</li>
+        <li>Front-End Development: React, Next.js, TypeScript, Tailwind CSS, JavaScript, HTML/CSS</li>
+        <li>Backend Integration: Supabase, Authentication, Database Design, API Integration</li>
+        <li>AI Implementation: OpenAI Integration, Vector Databases, Semantic Search, Chatbot Design</li>
+        <li>Research & Testing: User Research, A/B Testing, Heuristic Analysis, Accessibility Compliance</li>
+      </ul>
+    </section>
+    
+    <section>
+      <h3 class="section-title">EXPERIENCE</h3>
+      
+      <div class="experience-item">
+        <h4 class="experience-title">UX Designer - Freelance</h4>
+        <p class="experience-subtitle">AUGUST 2020 - PRESENT | Renton, WA</p>
+        <ul>
+          <li>Create wireframes, prototypes, and user flows optimized for usability and accessibility across devices</li>
+          <li>Develop React and Next.js applications with Supabase backend integration for authentication and data</li>
+          <li>Implement AI features including semantic search and conversational interfaces for enhanced user experiences</li>
+          <li>Design and implement responsive layouts using modern frameworks with TypeScript and Tailwind CSS</li>
+        </ul>
+      </div>
+      
+      <div class="experience-item">
+        <h4 class="experience-title">UX/Product Designer - SWYVVL (Real Estate Startup)</h4>
+        <p class="experience-subtitle">AUGUST 2022 - DECEMBER 2023 (Contract) | Olympia, WA</p>
+        <ul>
+          <li>Created and tested interactive prototypes for a real estate platform, improving user engagement and usability</li>
+          <li>Developed user flows and wireframes based on research and stakeholder input, supporting Agile workflows</li>
+          <li>Implemented data-driven design decisions to enhance search functionality and navigation experience</li>
+          <li>Collaborated with developers to ensure seamless implementation of design specifications</li>
+        </ul>
+      </div>
+      
+      <div class="experience-item">
+        <h4 class="experience-title">UX & Web Designer - Aletheia Digital Media</h4>
+        <p class="experience-subtitle">DECEMBER 2021 - JANUARY 2023 | Olympia, WA</p>
+        <ul>
+          <li>Produced interactive wireframes and prototypes for websites and mobile apps, ensuring responsive design</li>
+          <li>Planned and executed user testing sessions, analyzing results to inform design improvements</li>
+          <li>Built and maintained component-based design systems to ensure consistency across multiple projects</li>
+          <li>Integrated modern JavaScript frameworks to enhance website functionality and performance</li>
+        </ul>
+      </div>
+      
+      <div class="experience-item">
+        <h4 class="experience-title">UX Designer - Digital Agency Partners</h4>
+        <p class="experience-subtitle">AUGUST 2020 - NOVEMBER 2021 | Seattle, WA</p>
+        <ul>
+          <li>Designed user flows, wireframes, and prototypes for web platforms, focusing on usability and accessibility</li>
+          <li>Developed and maintained style guides, ensuring consistency across projects</li>
+          <li>Partnered with developers to test and refine designs through iterative processes</li>
+          <li>Created accessible interfaces adhering to WCAG standards for diverse user populations</li>
+        </ul>
+      </div>
+    </section>
+    
+    <section>
+      <h3 class="section-title">EDUCATION</h3>
+      <div class="experience-item">
+        <h4 class="experience-title">B.S. Cognitive Science: A.I. and Human-Computer Interaction</h4>
+        <p class="experience-subtitle">AUGUST 2018 - JUNE 2020 | University of California Santa Cruz</p>
+        <ul>
+          <li>Specialized in human behavior, AI-driven interfaces, and user-centered design methodologies</li>
+          <li>Developed interactive prototypes and conducted usability testing for academic and real-world applications</li>
+          <li>Studied the intersection of psychology, computer science, and design thinking</li>
+        </ul>
+      </div>
+    </section>
+    
+    <section>
+      <h3 class="section-title">TECHNICAL SKILLS</h3>
+      <div class="skills-grid">
+        <div>
+          <span class="skill-category">Front-End:</span>
+          React, Next.js, TypeScript, JavaScript, HTML5, CSS3, Tailwind CSS
+        </div>
+        <div>
+          <span class="skill-category">Back-End:</span>
+          Supabase, PostgreSQL, API integration, Authentication systems
+        </div>
+        <div>
+          <span class="skill-category">AI/ML:</span>
+          OpenAI implementation, Vector databases, Semantic search, RAG systems
+        </div>
+        <div>
+          <span class="skill-category">Design:</span>
+          Figma, Adobe Creative Suite, Webflow, Design systems, Component libraries
+        </div>
+        <div>
+          <span class="skill-category">Methodology:</span>
+          Agile, User-centered design, Iterative development, A/B testing
+        </div>
+      </div>
+    </section>
+    
+    <section>
+      <h3 class="section-title">PHILOSOPHY & VISION</h3>
+      <ul>
+        <li>Creating experiences that balance aesthetic excellence with functional precision</li>
+        <li>Leveraging AI to transform user experiences while maintaining human-centered values</li>
+        <li>Designing for accessibility and inclusive experiences across all platforms</li>
+        <li>Bridging the gap between complex technology and intuitive user interfaces</li>
+      </ul>
+    </section>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Add PDF conversion message
+      const printButton = document.querySelector('.print-button');
+      printButton.title = "Print or save as PDF";
+      
+      // Add keyboard shortcut for printing
+      document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'p') {
+          e.preventDefault();
+          window.print();
+        }
+      });
+    });
+  </script>
+</body>
+</html> 

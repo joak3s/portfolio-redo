@@ -1,0 +1,67 @@
+﻿JORDAN OAKES
+UX/UI DESIGNER | PRODUCT DESIGNER | AI SPECIALIST
+
+
+(425) 753-9977
+jordyoakes@gmail.com
+Portfolio: www.joakes.me
+
+SUMMARY
+Multi-disciplinary designer and developer specializing in user-centered digital experiences with over four years of UX/UI expertise. Combines cognitive science background with technical development skills to bridge human needs with technological innovation. Proven ability to deliver intuitive, accessible solutions across web and mobile platforms that enhance user engagement while aligning with business goals. Passionate about AI integration, research-driven design, and iterative processes.
+
+CORE COMPETENCIES 
+* UX/UI Design: Wireframing, Prototyping, User Flows, Interaction Design, Usability Testing
+* Front-End Development: React, Next.js, TypeScript, Tailwind CSS, JavaScript, HTML/CSS
+* Backend Integration: Supabase, Authentication, Database Design, API Integration
+* AI Implementation: OpenAI Integration, Vector Databases, Semantic Search, Chatbot Design
+* Research & Testing: User Research, A/B Testing, Heuristic Analysis, Accessibility Compliance
+* Tools: Figma, Adobe Creative Suite, Webflow, Git, Version Control
+
+EXPERIENCE
+UX Designer - Freelance - Renton, WA
+AUGUST 2020 - PRESENT
+* Create wireframes, prototypes, and user flows optimized for usability and accessibility across devices
+* Develop React and Next.js applications with Supabase backend integration for authentication and data
+* Implement AI features including semantic search and conversational interfaces for enhanced user experiences
+* Design and implement responsive layouts using modern frameworks with TypeScript and Tailwind CSS
+
+UX/Product Designer - SWYVVL (Real Estate Startup) - Olympia, WA
+AUGUST 2022 - DECEMBER 2023 (Contract)
+* Created and tested interactive prototypes for a real estate platform, improving user engagement and usability
+* Developed user flows and wireframes based on research and stakeholder input, supporting Agile workflows
+* Implemented data-driven design decisions to enhance search functionality and navigation experience
+* Collaborated with developers to ensure seamless implementation of design specifications
+
+UX & Web Designer - Aletheia Digital Media - Olympia, WA
+DECEMBER 2021 - JANUARY 2023
+* Produced interactive wireframes and prototypes for websites and mobile apps, ensuring responsive design
+* Planned and executed user testing sessions, analyzing results to inform design improvements
+* Built and maintained component-based design systems to ensure consistency across multiple projects
+* Integrated modern JavaScript frameworks to enhance website functionality and performance
+
+UX Designer - Digital Agency Partners - Seattle, WA
+AUGUST 2020 - NOVEMBER 2021
+* Designed user flows, wireframes, and prototypes for web platforms, focusing on usability and accessibility
+* Developed and maintained style guides, ensuring consistency across projects
+* Partnered with developers to test and refine designs through iterative processes
+* Created accessible interfaces adhering to WCAG standards for diverse user populations
+
+EDUCATION
+B.S. Cognitive Science: A.I. and Human-Computer Interaction - University of California Santa Cruz
+AUGUST 2018 - JUNE 2020
+* Specialized in human behavior, AI-driven interfaces, and user-centered design methodologies
+* Developed interactive prototypes and conducted usability testing for academic and real-world applications
+* Studied the intersection of psychology, computer science, and design thinking
+
+TECHNICAL SKILLS
+* Front-End: React, Next.js, TypeScript, JavaScript, HTML5, CSS3, Tailwind CSS
+* Back-End: Supabase, PostgreSQL, API integration, Authentication systems
+* AI/ML: OpenAI implementation, Vector databases, Semantic search, RAG systems
+* Design: Figma, Adobe Creative Suite, Webflow, Design systems, Component libraries
+* Methodology: Agile, User-centered design, Iterative development, A/B testing
+
+PHILOSOPHY & VISION
+* Creating experiences that balance aesthetic excellence with functional precision
+* Leveraging AI to transform user experiences while maintaining human-centered values
+* Designing for accessibility and inclusive experiences across all platforms
+* Bridging the gap between complex technology and intuitive user interfaces
