@@ -107,6 +107,51 @@ export default function TimelineMilestone({
     setSelectedImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  // Navigation buttons for year badge
+  const NavButtons = () => (
+    <div className="flex items-center gap-2">
+      {onPrevious && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onPrevious}
+          disabled={!hasPrevious}
+          className={cn(
+            "h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors",
+            !hasPrevious && "opacity-30 cursor-not-allowed hover:bg-background/80"
+          )}
+          aria-label="Previous milestone"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      )}
+
+      <Badge
+        variant="secondary"
+        className="flex items-center gap-1 text-lg font-bold px-3 py-1 z-10"
+      >
+        <Calendar className="h-4 w-4" />
+        {milestone.year}
+      </Badge>
+
+      {onNext && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onNext}
+          disabled={!hasNext}
+          className={cn(
+            "h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors",
+            !hasNext && "opacity-30 cursor-not-allowed hover:bg-background/80"
+          )}
+          aria-label="Next milestone"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div className="relative">
       <Card
@@ -115,7 +160,8 @@ export default function TimelineMilestone({
         aria-label={`Milestone: ${milestone.title} (${milestone.year})`}
       >
         <CardHeader className="pb-0">
-          <div className="flex items-center justify-between">
+          {/* Desktop layout */}
+          <div className="hidden md:flex items-center justify-between">
             <div className="flex items-center gap-3">
               <motion.div
                 className={cn("p-2 rounded-full shadow-sm", milestone.color)}
@@ -123,7 +169,7 @@ export default function TimelineMilestone({
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.3 }}
               >
-                {getIcon(milestone.icon)}
+                {getIcon(milestone.icon || "")}
               </motion.div>
 
               <div>
@@ -134,15 +180,32 @@ export default function TimelineMilestone({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="secondary"
-                className="flex items-center gap-1 text-lg font-bold px-3 py-1"
-              >
-                <Calendar className="h-4 w-4" />
-                {milestone.year}
-              </Badge>
+            <NavButtons />
+          </div>
 
+          {/* Mobile layout */}
+          <div className="md:hidden flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <motion.div
+                className={cn("p-2 rounded-full shadow-sm", milestone.color)}
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                {getIcon(milestone.icon || "")}
+              </motion.div>
+
+              <div>
+                <h2 className="text-xl font-bold text-foreground leading-tight">{milestone.title}</h2>
+                {"subtitle" in milestone && (
+                  <p className="text-sm text-muted-foreground">{String(milestone.subtitle || '')}</p>
+                )}
+              </div>
+            </div>
+            
+            {/* Centered year badge on mobile */}
+            <div className="flex justify-center mt-2">
+              <NavButtons />
             </div>
           </div>
         </CardHeader>
@@ -166,111 +229,76 @@ export default function TimelineMilestone({
             onClick={() => openLightbox(0)}
           />
 
-          {/* Visual indicator in bottom-right corner */}
-          <div className="absolute bottom-2 right-2">
-            <Badge variant="outline" className="bg-background/70 backdrop-blur-sm text-xs">
-              {milestone.year}
-            </Badge>
+          {/* Skills badges - desktop shows all, mobile shows only 2 */}
+          <div className="absolute bottom-2 left-2 max-w-full">
+            {/* Desktop version - all skills */}
+            <div className="hidden md:flex gap-2 pb-1 flex-wrap max-w-full">
+              {milestone.skills && milestone.skills.map((skill, index) => (
+                <Badge
+                  key={index}
+                  variant="outline"
+                  className="bg-background/70 backdrop-blur-sm text-sm whitespace-nowrap animate-in fade-in-50"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+            
+            {/* Mobile version - only 2 skills */}
+            <div className="flex md:hidden gap-2 pb-1">
+              {milestone.skills && milestone.skills.slice(0, 2).map((skill, index) => (
+                <Badge
+                  key={index}
+                  variant="outline"
+                  className="bg-background/70 backdrop-blur-sm text-sm whitespace-nowrap animate-in fade-in-50"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  {skill}
+                </Badge>
+              ))}
+              {milestone.skills && milestone.skills.length > 2 && (
+                <Badge
+                  variant="outline"
+                  className="bg-background/70 backdrop-blur-sm text-sm whitespace-nowrap animate-in fade-in-50"
+                  style={{ animationDelay: `100ms` }}
+                >
+                  +{milestone.skills.length - 2}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
         <CardContent className="pt-6">
           <p className="text-muted-foreground mb-6 leading-relaxed">{milestone.description}</p>
 
-          <div className="flex flex-wrap gap-2 mb-4">
-            {milestone.skills.map((skill, index) => (
-              <Badge
-                key={index}
-                variant="outline"
-                className="animate-in fade-in-50 slide-in-from-bottom-3"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                {skill}
-              </Badge>
-            ))}
+
+          {/* Simplified Navigation Indicators */}
+          <div className="flex flex-col items-center border-t border-border pt-4 mt-4">
+            <div className="text-xs text-muted-foreground mb-2 md:ml-auto ml-0 ">
+              <span className="hidden md:inline-block">Use arrow keys to navigate</span>
+              <span className="md:hidden">Swipe or tap arrows to navigate</span>
+            </div>
+            {totalMilestones > 0 && (
+              <span className="text-xs text-muted-foreground mb-2">
+                {currentIndex + 1} of {totalMilestones}
+              </span>
+            )}
+
+            <div className="flex gap-1.5 my-2">
+              {Array.from({ length: totalMilestones }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all duration-300",
+                    currentIndex === idx ? "w-6 bg-primary" : "w-1.5 bg-muted"
+                  )}
+                  aria-hidden="true"
+                />
+              ))}
+            </div>
           </div>
-
-          {/* Additional Images (for new JourneyEntry type) */}
-          {'journey_images' in milestone && milestone.journey_images && milestone.journey_images.length > 1 && (
-            <div className="mt-6 mb-4">
-              <p className="text-sm font-medium mb-2">Additional images:</p>
-              <div className="grid grid-cols-3 gap-2">
-                {milestone.journey_images.slice(1).map((image, index) => (
-                  <div
-                    key={index}
-                    className="relative aspect-video rounded-md overflow-hidden border group cursor-pointer"
-                    onClick={() => openLightbox(index + 1)}
-                  >
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors z-10 flex items-center justify-center">
-                      <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <Image
-                      src={image.url}
-                      alt={`Additional image ${index + 1}`}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Navigation Controls */}
-          {(onNext || onPrevious) && (
-            <div className="flex justify-between items-center border-t border-border pt-4 mt-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onPrevious}
-                disabled={!hasPrevious}
-                className={cn("gap-1", !hasPrevious && "opacity-50 cursor-not-allowed")}
-                aria-label="Previous milestone"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                <span className="sr-only md:not-sr-only">Previous</span>
-              </Button>
-
-              <div className="flex-col justify-items-center">
-                                
-              {totalMilestones > 0 && (
-                  <span className="text-xs text-muted-foreground text-center">
-                    {currentIndex + 1} of {totalMilestones}
-                  </span>
-                )}
-                <div className="hidden md:flex gap-1.5 my-4">
-                  {Array.from({ length: totalMilestones }).map((_, idx) => (
-                    <div
-                      key={idx}
-                      className={cn(
-                        "h-1.5 rounded-full transition-all duration-300",
-                        currentIndex === idx ? "w-6 bg-primary" : "w-1.5 bg-muted"
-                      )}
-                      aria-hidden="true"
-                    />
-                  ))}
-                </div>
-    
-                <div className="hidden md:block bottom-0 pt-3">
-                  <div className="text-xs text-center text-muted-foreground">
-                    <span className="hidden md:inline-block">Use arrow keys to navigate</span>
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onNext}
-                disabled={!hasNext}
-                className={cn("gap-1", !hasNext && "opacity-50 cursor-not-allowed")}
-                aria-label="Next milestone"
-              >
-                <span className="sr-only md:not-sr-only">Next</span>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
