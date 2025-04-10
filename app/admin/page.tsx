@@ -717,7 +717,7 @@ export default function AdminPage() {
 
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
         ) : projects.length === 0 ? (
           <div className="text-center py-12 border rounded-md bg-muted/10">

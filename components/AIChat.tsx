@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { 
@@ -13,7 +13,8 @@ import {
   RefreshCw,
   Briefcase,
   Sparkles,
-  Zap
+  Zap,
+  User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -766,7 +767,7 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
                 </button>
               </div>
 
-              {/* Simplified Quick Prompts */}
+              {/* Quick Prompts */}
               <div className="mb-4">
                 <div className="flex flex-wrap justify-center gap-2">
                   {quickPrompts.map((prompt, index) => (
@@ -793,7 +794,7 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
               <div 
                 key={msg.id || index} 
                 className={cn(
-                  "flex items-start gap-3 p-3 rounded-xl",
+                  "flex items-start gap-3 p-4 py-8 rounded-xl",
                   msg.role === 'assistant' 
                     ? "dark:bg-white/5 bg-black/5 backdrop-blur-md"
                     : ""
@@ -803,26 +804,13 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
                   className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center ${
                     msg.role === 'assistant'
                       ? 'bg-gradient-to-br from-purple-500 to-blue-500'
-                      : 'bg-gradient-to-br from-blue-400 to-teal-400'
+                      : 'bg-gradient-to-br from-blue-600 to-teal-700'
                   }`}
                 >
                   {msg.role === 'assistant' ? (
                     <BrainCog className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                   ) : (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-white"
-                    >
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
+                    <User className="h-4 w-4 text-white" />
                   )}
                 </div>
                 <div
@@ -831,7 +819,7 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
                   }`}
                 >
                   {msg.role === 'assistant' ? (
-                    <div className="prose prose-md dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-md dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-md prose-pre:overflow-x-auto prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:font-medium prose-a:underline hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-a:underline-offset-2 prose-a:transition-colors prose-a:cursor-pointer">
+                    <div className="prose prose-md dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-md dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-md prose-pre:overflow-x-auto prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:font-medium prose-a:underline hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-a:underline-offset-2 prose-a:transition-colors prose-a:cursor-pointer [&_h1]:!mt-4 [&_h2]:!mt-4 [&_h3]:!mt-4">
                       {msg.projectImage && (
                         <motion.div 
                           className="mb-4 max-w-full overflow-hidden rounded-lg"
@@ -842,7 +830,7 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
                           <img 
                             src={msg.projectImage} 
                             alt="Project Image" 
-                            className="w-full h-auto max-h-[300px] object-cover rounded-lg shadow-md" 
+                            className="w-full h-auto aspect-16/9 max-h-[300px] object-cover rounded-lg shadow-md" 
                             loading="lazy"
                             onLoad={() => console.log('Project image loaded successfully:', msg.projectImage)}
                             onError={(e) => {
@@ -854,16 +842,28 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
                         </motion.div>
                       )}
                       <div
-                        dangerouslySetInnerHTML={{ 
-                          __html: msg.content.replace(
-                            /```(\w+)?\n([\s\S]*?)```/g, 
-                            (_, lang, code) => `<pre><code class="language-${lang || ''}">${code.trim()}</code></pre>`
-                          ).replace(
-                            /<img[^>]*>/g, 
-                            '' // Remove any img tags from the AI response
-                          )
-                        }} 
-                        data-links="processed"
+                        ref={(el) => {
+                          // Skip if the element doesn't exist
+                          if (!el) return;
+                          
+                          // Always update content during streaming or if not yet processed
+                          if (msg.isStreaming || !el.getAttribute('data-processed')) {
+                            el.innerHTML = msg.content.replace(
+                              /```(\w+)?\n([\s\S]*?)```/g, 
+                              (_, lang, code) => `<pre><code class="language-${lang || ''}">${code.trim()}</code></pre>`
+                            ).replace(
+                              /<img[^>]*>/g, 
+                              '' // Remove any img tags from the AI response
+                            );
+                            
+                            // Only mark as processed when streaming is complete
+                            if (!msg.isStreaming) {
+                              el.setAttribute('data-processed', 'true');
+                            }
+                          }
+                        }}
+                        data-content-id={msg.id || index}
+                        className="prose prose-md dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-md dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-md prose-pre:overflow-x-auto prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:font-medium prose-a:underline hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-a:underline-offset-2 prose-a:transition-colors prose-a:cursor-pointer [&_h1]:!mt-4 [&_h2]:!mt-4 [&_h3]:!mt-4"
                         onClick={(e) => {
                           // Find the link element (could be the target or a parent)
                           let linkElement = e.target as HTMLElement;
@@ -892,7 +892,7 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
                       />
                       {/* Show cursor effect for streaming messages */}
                       {msg.isStreaming && (
-                        <span className="ml-1 inline-block w-2 h-4 bg-blue-500 animate-pulse"></span>
+                        <span className="ml-1 inline-block w-2 h-4 rounded-full bg-blue-500 animate-pulse"></span>
                       )}
                     </div>
                   ) : (

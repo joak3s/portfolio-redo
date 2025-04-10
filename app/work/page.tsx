@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 import ProjectCard from "@/components/project-card"
 import type { Project, Tool } from "@/lib/types"
 import { supabaseClient } from "@/lib/supabase-browser"
@@ -123,8 +123,8 @@ export default function WorkPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
         ) : filteredProjects.length === 0 ? (
           <div className="text-center py-12">

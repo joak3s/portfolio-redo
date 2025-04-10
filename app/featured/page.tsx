@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { ProjectCarousel } from "@/components/project-carousel"
 import { supabaseClient } from "@/lib/supabase-browser"
@@ -63,7 +63,7 @@ export default function FeaturedPage() {
     return (
       <div className="container py-12">
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
       </div>
     )
