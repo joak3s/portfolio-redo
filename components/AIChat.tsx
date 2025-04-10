@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { 
   Send, 
   BrainCog, 
@@ -23,6 +24,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   projectImage?: string;
+  isStreaming?: boolean;
+  id?: string;
 }
 
 interface QuickPrompt {
@@ -77,6 +80,7 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
   const [glowPosition, setGlowPosition] = useState({ x: 50, y: 50 });
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
   const [recommendedProjects, setRecommendedProjects] = useState<string[]>([]);
+  const router = useRouter();
   
   // Add new state for project list
   const [projectsList, setProjectsList] = useLocalStorage<ProjectCache>('chat_projects_cache', {
@@ -93,6 +97,18 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
 
   // Add state to manage delayed loading display
   const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
+  
+  // New state variables for streaming
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamedContent, setStreamedContent] = useState('');
+  const [streamMetadata, setStreamMetadata] = useState<{
+    projectImage?: string;
+    sessionId?: string;
+    relevantProject?: any;
+  }>({});
+  
+  // EventSource reference for streaming
+  const eventSourceRef = useRef<EventSource | null>(null);
   
   const icons = [
     { Icon: Brain, key: 'brain' },
@@ -208,6 +224,43 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
     setHasLoadedHistory(false);
   }, [setSessionKey]);
 
+  // Generate a random skills question from a set of variations
+  const getRandomSkillsQuestion = () => {
+    const skillsQuestions = [
+      "What technical skills does Jordan have?",
+      "What web design skills does Jordan have?",
+      "Is Jordan a skilled UX Designer?",
+      "What coding languages is Jordan proficient in?",
+      "What are Jordan's strongest design skills?",
+      "Tell me about Jordan's frontend development expertise"
+    ];
+    return skillsQuestions[Math.floor(Math.random() * skillsQuestions.length)];
+  };
+
+  // Generate a random design approach question
+  const getRandomDesignQuestion = () => {
+    const designQuestions = [
+      "What is Jordan's approach to UX/UI design?",
+      "How does Jordan approach user-centered design?",
+      "What design principles does Jordan follow in his work?",
+      "How does Jordan balance aesthetics and functionality in design?",
+      "What is Jordan's design process like?",
+      "How does Jordan incorporate user feedback into his designs?"
+    ];
+    return designQuestions[Math.floor(Math.random() * designQuestions.length)];
+  };
+
+  // Generate a random background question
+  const getRandomBackgroundQuestion = () => {
+    const backgroundQuestions = [
+      "What is Jordan's educational background?",
+      "Where did Jordan study and what did he specialize in?",
+      "Tell me about Jordan's professional background",
+      "What type of work does Jordan do?",
+    ];
+    return backgroundQuestions[Math.floor(Math.random() * backgroundQuestions.length)];
+  };
+
   // Simplified quick prompts - just 4 high-value options
   const quickPrompts: QuickPrompt[] = [
     { 
@@ -216,19 +269,19 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
       action: () => handleQuickPrompt(`Tell me about ${getFeaturedProject()}`)
     },
     { 
-      text: 'Technical skills',
+      text: 'Technical Skills',
       icon: Brain,
-      action: () => handleQuickPrompt('What technical skills does Jordan have?')
+      action: () => handleQuickPrompt(getRandomSkillsQuestion())
     },
     { 
       text: 'Design approach',
       icon: PenTool,
-      action: () => handleQuickPrompt('What is Jordan\'s approach to UX/UI design?')
+      action: () => handleQuickPrompt(getRandomDesignQuestion())
     },
     { 
-      text: 'Other projects',
+      text: 'Background',
       icon: Briefcase, 
-      action: () => handleQuickPrompt(`What can you tell me about ${getRandomProject()}?`)
+      action: () => handleQuickPrompt(getRandomBackgroundQuestion())
     }
   ];
 
@@ -380,99 +433,180 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
     };
   }, [isLoadingHistory]);
 
-  // Updated to use the actual RAG API
+  // Updated to use the streaming API
   const processUserQuery = async (userPrompt: string) => {
     if (!userPrompt.trim()) return;
     
     setIsLoading(true);
     
+    // Create a unique ID for this message for streaming updates
+    const messageId = Date.now().toString();
+    
     // First add the user message to the state immediately
     const userMessage: Message = { role: 'user' as const, content: userPrompt };
     setMessages(prev => [...prev, userMessage]);
 
-    try {
-      const fetchWithRetry = async () => {
-        const retries = 3;
-        const delay = 1000; // 1 second
+    // Clear any previous streamed content
+    setStreamedContent('');
+    
+    // Close any existing event source
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
 
-        for (let attempt = 0; attempt < retries; attempt++) {
-          try {
-            const res = await fetch('/api/chat', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                prompt: userPrompt,
-                sessionKey: sessionKey,
-                includeHistory: true
-              }),
+    try {
+      // Add placeholder message for the streaming response
+      setMessages(prev => [
+        ...prev,
+        { 
+          role: 'assistant', 
+          content: '',
+          isStreaming: true,
+          id: messageId
+        }
+      ]);
+      
+      // Set streaming flag
+      setIsStreaming(true);
+      
+      // Add a small delay to ensure React state is synchronized before creating EventSource
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Create EventSource for streaming
+      const eventSource = new EventSource(`/api/chat/stream?data=${encodeURIComponent(JSON.stringify({
+        prompt: userPrompt,
+        sessionKey: sessionKey,
+        includeHistory: true,
+        streaming: true
+      }))}`);
+      
+      // Store reference to allow closing later
+      eventSourceRef.current = eventSource;
+      
+      // Handle initial metadata
+      eventSource.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Handle different message types
+          if (data.type === 'metadata') {
+            // Store metadata for later use
+            setStreamMetadata({
+              projectImage: data.projectImage,
+              sessionId: data.sessionId,
+              relevantProject: data.relevantProject
             });
             
-            if (!res.ok) {
-              const errorData = await res.json().catch(() => ({}));
-              const statusMessage = errorData.message || `Status ${res.status}`;
-              throw new Error(`API error: ${statusMessage}`);
+            // If session ID is set, update component state
+            if (data.sessionId && !sessionId) {
+              setSessionId(data.sessionId);
             }
             
-            return await res.json();
-          } catch (error) {
-            console.warn(`Attempt ${attempt + 1}/${retries} failed:`, error);
-            
-            // If this is the last attempt, throw the error
-            if (attempt === retries - 1) {
-              throw error;
+            // Important: If we have a project image, immediately update the current message
+            // This ensures the image appears in the current message as soon as metadata arrives
+            if (data.projectImage) {
+              setMessages(prev => 
+                prev.map(msg => 
+                  msg.id === messageId 
+                    ? { 
+                        ...msg, 
+                        projectImage: data.projectImage
+                      }
+                    : msg
+                )
+              );
+              console.log(`Assigned project image to message ${messageId}`);
             }
+          } 
+          else if (data.type === 'content') {
+            // Update the streamed content with new chunk
+            setStreamedContent(prev => prev + data.content);
             
-            // Wait before retrying with exponential backoff
-            await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, attempt)));
+            // Update the message in place without changing the projectImage
+            // The projectImage is set when metadata arrives, not with each content chunk
+            setMessages(prev => 
+              prev.map(msg => 
+                msg.id === messageId 
+                  ? { 
+                      ...msg, 
+                      content: msg.content + data.content
+                    }
+                  : msg
+              )
+            );
+          } 
+          else if (data.type === 'done') {
+            // Stream is complete, set final state
+            setMessages(prev => 
+              prev.map(msg => 
+                msg.id === messageId 
+                  ? { 
+                      ...msg, 
+                      isStreaming: false,
+                      // Preserve the existing projectImage rather than replacing it
+                      // This ensures we don't lose the image due to async state updates
+                    }
+                  : msg
+              )
+            );
+            
+            // Clean up
+            setIsStreaming(false);
+            setIsLoading(false);
+            eventSource.close();
+            eventSourceRef.current = null;
+            
+            // If parent component provided a context update handler, pass the context data
+            if (onContextUpdate && streamMetadata.relevantProject) {
+              onContextUpdate([], streamMetadata.relevantProject);
+            }
           }
+          else if (data.type === 'error') {
+            throw new Error(data.message || 'Unknown streaming error');
+          }
+        } catch (error) {
+          console.error('Error processing stream event:', error);
+          handleStreamError(messageId);
         }
+      });
+      
+      // Handle connection errors
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error);
+        handleStreamError(messageId);
       };
       
-      const data = await fetchWithRetry();
-      
-      // Store the session ID if available
-      if (data?.session_id && !sessionId) {
-        setSessionId(data.session_id);
-      }
-      
-      // Update the messages state with the response
-      setMessages(prev => [
-        ...prev, 
-        { 
-          role: 'assistant', 
-          content: data?.response || "I couldn't process that request properly. Please try again.",
-          projectImage: data?.project_image || null
-        }
-      ]);
-      
-      // Debug image information
-      console.log('Message added with project_image:', data?.project_image || 'none');
-      if (data?.relevant_project) {
-        console.log('Relevant project:', {
-          id: data.relevant_project.id,
-          name: data.relevant_project.name || data.relevant_project.title,
-          hasImage: !!data.project_image
-        });
-      }
-      
-      // If parent component provided a context update handler, pass the context data
-      if (onContextUpdate && data?.context) {
-        onContextUpdate(data.context, data.relevant_project);
-      }
     } catch (error) {
-      console.error('Error processing query:', error);
-      setMessages(prev => [
-        ...prev, 
-        { 
-          role: 'assistant', 
-          content: "I'm sorry, I encountered an error while processing your request. The server might be busy or facing temporary issues. Please try again in a moment." 
-        }
-      ]);
-    } finally {
-      setIsLoading(false);
+      console.error('Error setting up streaming:', error);
+      handleStreamError(messageId);
     }
+  };
+
+  // Helper to handle stream errors
+  const handleStreamError = (messageId: string) => {
+    // Close the event source
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    
+    // Update message state to show error
+    setMessages(prev => 
+      prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              role: 'assistant', 
+              content: "I'm sorry, I encountered an error while processing your request. The server might be busy or facing temporary issues. Please try again in a moment.",
+              isStreaming: false
+            }
+          : msg
+      )
+    );
+    
+    // Reset state
+    setIsStreaming(false);
+    setIsLoading(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -492,6 +626,18 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
       }
     }
   };
+
+  // Clean up EventSource on unmount
+  useEffect(() => {
+    return () => {
+      // Close any active event sources when the component unmounts
+      if (eventSourceRef.current) {
+        console.log('Closing EventSource on unmount');
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <motion.div 
@@ -645,7 +791,7 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
           <div className="mb-4 pr-2 space-y-3 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30 focus:transform-none focus:scale-100">
             {messages.map((msg, index) => (
               <div 
-                key={index} 
+                key={msg.id || index} 
                 className={cn(
                   "flex items-start gap-3 p-3 rounded-xl",
                   msg.role === 'assistant' 
@@ -685,7 +831,7 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
                   }`}
                 >
                   {msg.role === 'assistant' ? (
-                    <div className="prose prose-md dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-md dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-md prose-pre:overflow-x-auto">
+                    <div className="prose prose-md dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-md dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-md prose-pre:overflow-x-auto prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:font-medium prose-a:underline hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-a:underline-offset-2 prose-a:transition-colors prose-a:cursor-pointer">
                       {msg.projectImage && (
                         <motion.div 
                           className="mb-4 max-w-full overflow-hidden rounded-lg"
@@ -717,7 +863,37 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
                             '' // Remove any img tags from the AI response
                           )
                         }} 
+                        data-links="processed"
+                        onClick={(e) => {
+                          // Find the link element (could be the target or a parent)
+                          let linkElement = e.target as HTMLElement;
+                          
+                          // Walk up the DOM to find an 'a' tag if the click wasn't directly on it
+                          while (linkElement && linkElement.tagName !== 'A' && linkElement.parentElement) {
+                            linkElement = linkElement.parentElement;
+                          }
+                          
+                          // If we found a link, handle it
+                          if (linkElement.tagName === 'A') {
+                            e.preventDefault();
+                            const href = linkElement.getAttribute('href');
+                            
+                            if (href && href.startsWith('/work/')) {
+                              // Use Next.js client navigation for internal links
+                              console.log(`Navigating to project page: ${href}`);
+                              router.push(href);
+                            } else if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+                              // Open external links in a new tab
+                              console.log(`Opening external link: ${href}`);
+                              window.open(href, '_blank', 'noopener,noreferrer');
+                            }
+                          }
+                        }}
                       />
+                      {/* Show cursor effect for streaming messages */}
+                      {msg.isStreaming && (
+                        <span className="ml-1 inline-block w-2 h-4 bg-blue-500 animate-pulse"></span>
+                      )}
                     </div>
                   ) : (
                     <p className="text-md dark:text-white text-neutral-900">{msg.content}</p>
@@ -726,8 +902,8 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
               </div>
             ))}
             
-            {/* Loading animation - inline with messages */}
-            {isLoading && (
+            {/* Loading animation has been replaced by streaming UI for assistant messages */}
+            {isLoading && !isStreaming && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

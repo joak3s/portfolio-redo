@@ -29,6 +29,31 @@ const TIMEOUT_MS = 10000;
 const PROJECT_TIMEOUT_MS = 12000;  // Longer timeout for project-specific queries
 const GENERAL_TIMEOUT_MS = 8000;   // Increased timeout for general queries
 
+// Constants for the new streaming functionality
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+/**
+ * Converts an AsyncIterable to a ReadableStream
+ */
+function iterableToStream(iterable: AsyncIterable<any>): ReadableStream {
+  const iterator = iterable[Symbol.asyncIterator]();
+  return new ReadableStream({
+    async pull(controller) {
+      try {
+        const { value, done } = await iterator.next();
+        if (done) {
+          controller.close();
+        } else {
+          controller.enqueue(value);
+        }
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+}
+
 /**
  * Get or create a conversation session
  */
@@ -169,15 +194,12 @@ function findMostRelevantProject(searchResults: any[], queryIntent: { isProjectQ
       project.name = project.title;
     }
     
-    // If ID is undefined but we have a slug, try to extract ID from metadata
-    if (!project.id && project.slug) {
+    // Use content_id from the search result instead of looking for metadata.id
+    if (!project.id && directMatch.content_id) {
+      project.id = directMatch.content_id;
+      console.log(`Set project ID from content_id: ${project.id}`);
+    } else if (!project.id && project.slug) {
       console.log(`Project ID missing for "${project.name}". Attempting to find by slug: ${project.slug}`);
-      
-      // Check if the ID is stored in metadata
-      if (directMatch.metadata && directMatch.metadata.id) {
-        project.id = directMatch.metadata.id;
-        console.log(`Found ID in metadata: ${project.id}`);
-      }
     }
     
     return project;
@@ -195,33 +217,30 @@ function findMostRelevantProject(searchResults: any[], queryIntent: { isProjectQ
       project.name = project.title;
     }
     
-    // If ID is undefined but we have a slug, try to extract ID from metadata
-    if (!project.id && project.slug) {
+    // Use content_id from the search result instead of looking for metadata.id
+    if (!project.id && highConfidenceMatch.content_id) {
+      project.id = highConfidenceMatch.content_id;
+      console.log(`Set project ID from content_id: ${project.id}`);
+    } else if (!project.id && project.slug) {
       console.log(`Project ID missing for "${project.name}". Attempting to find by slug: ${project.slug}`);
-      
-      // Check if the ID is stored in metadata
-      if (highConfidenceMatch.metadata && highConfidenceMatch.metadata.id) {
-        project.id = highConfidenceMatch.metadata.id;
-        console.log(`Found ID in metadata: ${project.id}`);
-      }
     }
     
     return project;
   }
   
   // Finally, just return the first project found if any
-  const firstProject = searchResults.find(result => result.content_type === 'project')?.content;
-  if (firstProject) {
+  const firstProjectResult = searchResults.find(result => result.content_type === 'project');
+  if (firstProjectResult) {
     // Normalize the project data to ensure we have name field
+    const firstProject = firstProjectResult.content;
     if (firstProject.title && !firstProject.name) {
       firstProject.name = firstProject.title;
     }
     
-    // Handle missing ID
-    const firstProjectResult = searchResults.find(result => result.content_type === 'project');
-    if (!firstProject.id && firstProject.slug && firstProjectResult?.metadata?.id) {
-      firstProject.id = firstProjectResult.metadata.id;
-      console.log(`Found ID in metadata for first project: ${firstProject.id}`);
+    // Use content_id from the search result instead of looking for metadata.id
+    if (!firstProject.id && firstProjectResult.content_id) {
+      firstProject.id = firstProjectResult.content_id;
+      console.log(`Set project ID from content_id: ${firstProject.id}`);
     }
     
     return firstProject;
@@ -263,7 +282,7 @@ export async function POST(request: Request) {
   
   try {
     // Parse request body with additional fields for session management
-    const { prompt, sessionKey, includeHistory = true } = await request.json();
+    const { prompt, sessionKey, includeHistory = true, streaming = false } = await request.json();
     
     if (!prompt) {
       return NextResponse.json(
@@ -427,7 +446,27 @@ export async function POST(request: Request) {
       setTimeout(() => reject(new Error(`Request timed out after ${requestTimeout}ms`)), requestTimeout);
     });
     
-    // Run hybrid search with a timeout
+    // If streaming mode is requested, use streaming API for response
+    if (streaming) {
+      // Run hybrid search with a timeout for streaming case
+      const searchResultsPromise = hybridSearch(searchQuery, {
+        matchThreshold,  
+        matchCount,
+      });
+      
+      // Race the search against the timeout
+      const searchResults = await Promise.race([
+        searchResultsPromise,
+        timeoutPromise
+      ]) as Awaited<typeof searchResultsPromise>;
+      
+      console.log(`Found ${searchResults.length} relevant documents`);
+      console.log('Search execution time:', Date.now() - startTime, 'ms');
+      
+      return await streamResponse(searchResults, prompt, sessionKey, includeHistory, requestTimeout, queryIntent, startTime);
+    }
+    
+    // Run hybrid search with a timeout for non-streaming case (existing code)
     const searchResultsPromise = hybridSearch(searchQuery, {
       matchThreshold,  
       matchCount,
@@ -590,7 +629,8 @@ IMPORTANT RULES:
 3. If no relevant project matches the prompt, respond by stating that no related project is available.
 4. Maintain a professional and convincing tone, focusing on accurate and verified information.
 5. Format responses in semantic HTML using proper <h2>, <p>, <strong>, and <a> tags where appropriate.
-6. DO NOT wrap the response in markdown code blocks.`;
+6. DO NOT wrap the response in markdown code blocks.
+7. When linking to project case studies, ALWAYS use the format <a href="/work/[slug]">Project Name</a> where [slug] is the project's slug value.`;
 
     // Add optimized response instructions based on query type
     if (queryIntent.isProjectQuery) {
@@ -727,5 +767,312 @@ ${mostRelevantProject ? `Relevant Project:\n${JSON.stringify(mostRelevantProject
     });
   } catch (error: any) {
     throw error; // Rethrow to the main error handler
+  }
+}
+
+/**
+ * Handle streaming response
+ */
+async function streamResponse(
+  searchResults: any[], 
+  prompt: string, 
+  sessionKey: string | null, 
+  includeHistory: boolean, 
+  requestTimeout: number,
+  queryIntent: ReturnType<typeof analyzeQueryIntent>,
+  startTime: number
+) {
+  try {
+    // Get session id if needed
+    let sessionId: string | null = null;
+    let previousMessages: any[] = [];
+    
+    if (sessionKey) {
+      sessionId = await getOrCreateSession(sessionKey);
+      
+      // Retrieve conversation history if requested
+      if (includeHistory && sessionId) {
+        previousMessages = await getSessionMessages(sessionId, 5);
+        console.log(`Retrieved ${previousMessages.length} previous messages for context`);
+      }
+    }
+    
+    // Format response context
+    const responseContext = formatContext(searchResults);
+    
+    // Only find relevant project for project queries or if there's a high confidence match
+    const mostRelevantProject = queryIntent.isProjectQuery || 
+                               searchResults.some((r: any) => r.content_type === 'project' && r.similarity > 0.85) 
+                               ? findMostRelevantProject(searchResults, queryIntent) 
+                               : null;
+
+    // Variable to store the project image URL
+    let projectImage: string | null = null;
+    
+    // Process project image for project-related queries (same as non-streaming)
+    if (mostRelevantProject) {
+      console.log('Found relevant project:', {
+        id: mostRelevantProject.id,
+        name: mostRelevantProject.name || mostRelevantProject.title,
+        slug: mostRelevantProject.slug
+      });
+      
+      // Function to validate image URL
+      const isValidImageUrl = (url: string | null | undefined): boolean => {
+        if (!url) return false;
+        // Basic validation - must be a string and start with http/https
+        return typeof url === 'string' && 
+               (url.startsWith('http://') || url.startsWith('https://')) && 
+               url.length > 10;
+      };
+
+      // Check for image same as non-streaming logic
+      if (isValidImageUrl(mostRelevantProject.image_url)) {
+        projectImage = mostRelevantProject.image_url;
+      } else if (mostRelevantProject.gallery_images && 
+                mostRelevantProject.gallery_images.length > 0 && 
+                isValidImageUrl(mostRelevantProject.gallery_images[0].url)) {
+        projectImage = mostRelevantProject.gallery_images[0].url;
+      } else if (mostRelevantProject.id) {
+        const fetchedImage = await getProjectFirstImage(mostRelevantProject.id);
+        if (isValidImageUrl(fetchedImage)) {
+          projectImage = fetchedImage;
+        }
+      } else if (mostRelevantProject.slug) {
+        // If we only have a slug, try to get the project by slug and then fetch image
+        const project = await getProjectBySlug(mostRelevantProject.slug);
+        
+        if (project && project.id) {
+          // Update the relevant project with the database ID
+          mostRelevantProject.id = project.id;
+          
+          // Now try to fetch the image
+          const fetchedImage = await getProjectFirstImage(project.id);
+          if (isValidImageUrl(fetchedImage)) {
+            projectImage = fetchedImage;
+          }
+        }
+      }
+    }
+    
+    // Format conversation history for the AI prompt
+    const conversationHistory = previousMessages.map(msg => ({
+      role: msg.role || (msg.user_prompt ? 'user' : 'assistant'), 
+      content: msg.content || msg.user_prompt || msg.response
+    }));
+    
+    // System message same as non-streaming version
+    let systemMessageContent = `You are an AI assistant for Jordan Oakes' portfolio website. Jordan is a multi-disciplinary designer and developer specializing in user-centered digital experiences, with expertise in UX/UI design, web development, AI-driven solutions, and human-computer interaction. 
+
+IMPORTANT RULES:
+1. Only provide information about real, documented projects from the context provided.
+2. DO NOT invent or speculate about any projects, outcomes, or roles.
+3. If no relevant project matches the prompt, respond by stating that no related project is available.
+4. Maintain a professional and convincing tone, focusing on accurate and verified information.
+5. Format responses in semantic HTML using proper <h2>, <p>, <strong>, and <a> tags where appropriate.
+6. DO NOT wrap the response in markdown code blocks.
+7. When linking to project case studies, ALWAYS use the format <a href="/work/[slug]">Project Name</a> where [slug] is the project's slug value.`;
+
+    // Add project or general query specific instructions
+    if (queryIntent.isProjectQuery) {
+      if (projectImage) {
+        systemMessageContent += `
+
+ABOUT THE CURRENT PROJECT:
+7. The user is asking about the "${mostRelevantProject?.name}" project.
+8. Focus your response on providing accurate details about this specific project.
+9. DO NOT include any image tags in your response - the UI will automatically display the project image.`;
+      }
+    } else {
+      systemMessageContent += `
+
+GENERAL INFORMATION:
+7. The user is asking about Jordan's skills, experience, or background.
+8. Focus on providing accurate information about Jordan's professional expertise and capabilities.
+9. Keep your response concise and informative without unnecessary details.`;
+    }
+
+    systemMessageContent += `
+
+Context:
+${responseContext || "No specific information found in knowledge base."}
+
+${mostRelevantProject ? `Relevant Project:\n${JSON.stringify(mostRelevantProject, null, 2)}` : ""}`;
+    
+    const systemMessage = {
+      role: 'system',
+      content: systemMessageContent
+    };
+    
+    // Prepare message array for API call with conversation history
+    const messages = [
+      systemMessage,
+      ...conversationHistory,
+      { role: 'user', content: prompt }
+    ];
+    
+    // Adjust OpenAI parameters based on query type for better performance
+    const temperature = queryIntent.isProjectQuery ? 0.7 : 0.4;
+    const maxTokens = queryIntent.isProjectQuery ? 1000 : 700;
+    
+    // Send initial metadata as a JSON object
+    const initialData = {
+      type: 'metadata',
+      projectImage: projectImage,
+      sessionId: sessionId,
+      relevantProject: mostRelevantProject
+    };
+    
+    // Create a stream of the response chunks
+    const stream = iterableToStream(streamOpenAIResponse(
+      messages,
+      temperature,
+      maxTokens,
+      initialData,
+      sessionId,
+      prompt
+    ));
+    
+    // Create streaming response
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+  } catch (error: any) {
+    console.error('Error in streaming response:', error);
+    
+    // Create an error response stream
+    const errorStream = new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'error',
+          error: 'Failed to process request',
+          message: "I apologize, but something went wrong processing your request. Please try again."
+        })}\n\n`));
+        controller.close();
+      }
+    });
+    
+    return new Response(errorStream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+  }
+}
+
+/**
+ * Stream OpenAI response chunks to client
+ */
+async function* streamOpenAIResponse(
+  messages: any[],
+  temperature: number,
+  maxTokens: number,
+  initialData: any,
+  sessionId: string | null,
+  userPrompt: string
+): AsyncGenerator<Uint8Array> {
+  try {
+    // Send initial metadata
+    yield encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`);
+    
+    // Call OpenAI with streaming enabled
+    const stream = await openAI.chat.completions.create({
+      model: 'gpt-4-turbo',
+      messages: messages,
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
+    });
+    
+    // Accumulate full response for saving to database later
+    let fullResponse = '';
+    
+    // Stream each chunk from OpenAI
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      if (content) {
+        // Add content to the full response
+        fullResponse += content;
+        
+        // Send content chunk to client
+        yield encoder.encode(`data: ${JSON.stringify({
+          type: 'content',
+          content: content
+        })}\n\n`);
+      }
+    }
+    
+    // Save the complete response to the database if we have a session
+    if (sessionId) {
+      try {
+        // Don't wait for these operations to complete, let them happen in the background
+        // so we don't delay the streaming response completion
+        
+        // 1. Save message pair to database
+        const saveMessages = async () => {
+          try {
+            // Save user message
+            await saveChatMessage(sessionId, 'user', userPrompt);
+            
+            // Save assistant response
+            await saveChatMessage(sessionId, 'assistant', fullResponse);
+          } catch (error) {
+            console.error('Error saving chat messages:', error);
+          }
+        };
+        
+        // 2. Update session title if needed
+        const updateTitle = async () => {
+          try {
+            const previousMessages = await getSessionMessages(sessionId, 1);
+            if (previousMessages.length <= 1) {
+              const truncatedPrompt = userPrompt.length > 30 
+                ? userPrompt.substring(0, 30) + '...' 
+                : userPrompt;
+              
+              await updateSessionTitle(sessionId, truncatedPrompt);
+            }
+          } catch (error) {
+            console.error('Error updating session title:', error);
+          }
+        };
+        
+        // 3. Record interaction for analytics
+        const recordAnalytics = async () => {
+          try {
+            await recordChatInteraction(userPrompt, fullResponse, {
+              session_id: sessionId
+            });
+          } catch (error) {
+            console.error('Error recording chat analytics:', error);
+          }
+        };
+        
+        // Trigger all background operations
+        saveMessages();
+        updateTitle();
+        recordAnalytics();
+      } catch (error) {
+        console.error('Error in background operations:', error);
+      }
+    }
+    
+    // Signal completion
+    yield encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+    
+  } catch (error) {
+    console.error('Error in streaming response:', error);
+    yield encoder.encode(`data: ${JSON.stringify({
+      type: 'error',
+      error: 'Streaming error',
+      message: "There was an error generating the response. Please try again."
+    })}\n\n`);
   }
 } 
