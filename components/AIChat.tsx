@@ -77,7 +77,6 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
   const [glowPosition, setGlowPosition] = useState({ x: 50, y: 50 });
   const [currentIconIndex, setCurrentIconIndex] = useState(0);
   const [recommendedProjects, setRecommendedProjects] = useState<string[]>([]);
-  const [isComponentReady, setIsComponentReady] = useState(false);
   
   // Add new state for project list
   const [projectsList, setProjectsList] = useLocalStorage<ProjectCache>('chat_projects_cache', {
@@ -277,17 +276,13 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
       setSessionKey(newSessionKey);
       // Mark as loaded immediately for new sessions to prevent unnecessary loading state
       setHasLoadedHistory(true);
-      // Component is ready once we have a session key
-      setIsComponentReady(true);
     } else {
-      // For existing sessions, wait until we've checked for history
-      if (hasLoadedHistory) {
-        setIsComponentReady(true);
-      }
+      // For returning users, we'll check for history in the next effect
+      console.log('Using existing session key:', sessionKey);
     }
-  }, [sessionKey, hasLoadedHistory, setSessionKey, setHasLoadedHistory]);
+  }, [sessionKey, setSessionKey]);
   
-  // Load chat history when session ID changes
+  // Load chat history when session key is available
   useEffect(() => {
     const loadChatHistory = async () => {
       // Skip loading if no session key, or if already loaded
@@ -302,7 +297,6 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
       if (isNewSession) {
         console.log('Detected new session, skipping history load');
         setHasLoadedHistory(true);
-        setIsComponentReady(true);
         return;
       }
       
@@ -317,7 +311,6 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
           console.warn('Failed to fetch session ID, creating a new session');
           setIsLoadingHistory(false);
           setHasLoadedHistory(true);
-          setIsComponentReady(true);
           return;
         }
         
@@ -328,7 +321,6 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
           console.log('No existing session found, creating a new one');
           setIsLoadingHistory(false);
           setHasLoadedHistory(true);
-          setIsComponentReady(true);
           return;
         }
         
@@ -341,7 +333,6 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
           console.warn('Failed to fetch message history');
           setIsLoadingHistory(false);
           setHasLoadedHistory(true);
-          setIsComponentReady(true);
           return;
         }
         
@@ -361,14 +352,9 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
         } else {
           console.log('No messages in session history');
         }
-        
-        // Mark component as ready after history is loaded
-        setIsComponentReady(true);
       } catch (error) {
         console.error('Error loading chat history:', error);
-        // Ensure we still mark the component as ready even on error
         setHasLoadedHistory(true);
-        setIsComponentReady(true);
       } finally {
         setIsLoadingHistory(false);
       }
@@ -393,21 +379,6 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
       if (timer) clearTimeout(timer);
     };
   }, [isLoadingHistory]);
-
-  // Add a safety timeout to ensure the component becomes ready
-  useEffect(() => {
-    // If component isn't ready after 2 seconds, force it ready
-    const safetyTimeout = setTimeout(() => {
-      if (!isComponentReady) {
-        console.log('Safety timeout reached, forcing component ready state');
-        setHasLoadedHistory(true);
-        setIsComponentReady(true);
-        setIsLoadingHistory(false);
-      }
-    }, 2000);
-    
-    return () => clearTimeout(safetyTimeout);
-  }, [isComponentReady]);
 
   // Updated to use the actual RAG API
   const processUserQuery = async (userPrompt: string) => {
@@ -566,294 +537,266 @@ export function AISimpleChat({ className, onContextUpdate, sessionKey: propSessi
 
       {/* Content with proper z-index */}
       <div className="relative z-10 w-full rounded-2xl dark:bg-neutral-950/90 bg-white/90 backdrop-blur-xl border dark:border-white/10 border-black/20 py-8 px-4 sm:py-12 sm:px-12">
-        {/* Animate the internal content separately */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ 
-            opacity: isComponentReady ? 1 : 0,
-            y: isComponentReady ? 0 : 10
-          }}
-          transition={{ 
-            duration: 0.4,
-            ease: "easeOut",
-            delay: 0.1 // Small delay to ensure card is visible first
-          }}
-        >
-          {/* Loading placeholder to show while content is not ready */}
-          {!isComponentReady && (
-            <div className="flex items-center justify-center h-64">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          )}
-          
-          {/* Only render actual content when ready */}
-          {isComponentReady && (
-            <>
-              {/* Header with conversation controls */}
-              {messages.length > 0 && (
-                <div className="absolute top-3 right-3 flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearConversation}
-                    className="h-8 px-2 rounded-lg text-xs dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10"
-                    title="Clear conversation"
-                  >
-                    <RefreshCw className="w-3 h-3 mr-1" />
-                    New Chat
-                  </Button>
+        {/* Header with conversation controls */}
+        {messages.length > 0 && (
+          <div className="absolute top-3 right-3 flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearConversation}
+              className="h-8 px-2 rounded-lg text-xs dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10"
+              title="Clear conversation"
+            >
+              <RefreshCw className="w-3 h-3 mr-1" />
+              New Chat
+            </Button>
+          </div>
+        )}
+        
+        {/* Loading history indicator with delayed appearance */}
+        <AnimatePresence>
+          {isLoadingHistory && showLoadingIndicator && (
+            <motion.div 
+              className="flex items-center justify-center pb-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                <div className="w-4 h-4">
+                  <svg className="animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                 </div>
-              )}
-              
-              {/* Loading history indicator with delayed appearance */}
-              <AnimatePresence>
-                {isLoadingHistory && showLoadingIndicator && (
-                  <motion.div 
-                    className="flex items-center justify-center pb-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                      <div className="w-4 h-4">
-                        <svg className="animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      </div>
-                      <span>Loading conversation...</span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              
-              {/* Combined Icon and Quick Prompts (disappear when loading or loading history) */}
-              <AnimatePresence>
-                {!isLoading && !isLoadingHistory && messages.length === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {/* Clickable Icon at the top for random prompts */}
-                    <div className="flex justify-center mb-6 sm:mb-12">
-                      <button 
-                        onClick={handleRandomPrompt}
-                        className="relative w-14 h-14 sm:w-16 sm:h-16 border-2 dark:border-white/10 border-black/20 rounded-xl transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-blue-400"
-                        aria-label="Generate random prompt"
-                      >
-                        <div 
-                          className="absolute inset-0 rounded-xl animate-pulse duration-8000"
-                          style={{
-                            background: `radial-gradient(circle, rgba(137, 141, 148, 0.1) 100%, transparent 20%)`,
-                            filter: 'blur(4px)'
-                          }}
-                        ></div>
-
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <AnimatePresence mode="wait">
-                            {icons.map(({ Icon, key }, index) => 
-                              index === currentIconIndex && (
-                                <motion.div
-                                  key={key}
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                  transition={{ duration: 0.5 }}
-                                >
-                                  <Icon className="w-8 h-8 sm:w-10 sm:h-10 text-gray-700 dark:text-gray-400" strokeWidth={1.5} />
-                                </motion.div>
-                              )
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </button>
-                    </div>
-
-                    {/* Simplified Quick Prompts */}
-                    <div className="mb-4">
-                      <div className="flex flex-wrap justify-center gap-2">
-                        {quickPrompts.map((prompt, index) => (
-                          <Button 
-                            key={index} 
-                            variant="outline" 
-                            className="text-sm rounded-xl flex items-center gap-1.5 dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all"
-                            onClick={prompt.action}
-                          >
-                            <prompt.icon className="w-3.5 h-3.5 opacity-70" />
-                            {prompt.text}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Message list with auto-scroll */}
-              <div className="mb-4 pr-2 space-y-3 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30 focus:transform-none focus:scale-100">
-                {messages.map((msg, index) => (
+                <span>Loading conversation...</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {/* Initial View - Combined Icon and Quick Prompts (show only when no messages and not loading) */}
+        <AnimatePresence>
+          {!isLoading && !isLoadingHistory && messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {/* Clickable Icon at the top for random prompts */}
+              <div className="flex justify-center mb-6 sm:mb-12">
+                <button 
+                  onClick={handleRandomPrompt}
+                  className="relative w-14 h-14 sm:w-16 sm:h-16 border-2 dark:border-white/10 border-black/20 rounded-xl transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-blue-400"
+                  aria-label="Generate random prompt"
+                >
                   <div 
-                    key={index} 
-                    className={cn(
-                      "flex items-start gap-3 p-3 rounded-xl",
-                      msg.role === 'assistant' 
-                        ? "dark:bg-white/5 bg-black/5 backdrop-blur-md"
-                        : ""
-                    )}
-                  >
-                    <div
-                      className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center ${
-                        msg.role === 'assistant'
-                          ? 'bg-gradient-to-br from-purple-500 to-blue-500'
-                          : 'bg-gradient-to-br from-blue-400 to-teal-400'
-                      }`}
-                    >
-                      {msg.role === 'assistant' ? (
-                        <BrainCog className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                      ) : (
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-white"
-                        >
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
+                    className="absolute inset-0 rounded-xl animate-pulse duration-8000"
+                    style={{
+                      background: `radial-gradient(circle, rgba(137, 141, 148, 0.1) 100%, transparent 20%)`,
+                      filter: 'blur(4px)'
+                    }}
+                  ></div>
+
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <AnimatePresence mode="wait">
+                      {icons.map(({ Icon, key }, index) => 
+                        index === currentIconIndex && (
+                          <motion.div
+                            key={key}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            <Icon className="w-8 h-8 sm:w-10 sm:h-10 text-gray-700 dark:text-gray-400" strokeWidth={1.5} />
+                          </motion.div>
+                        )
                       )}
-                    </div>
-                    <div
-                      className={`flex-1 rounded-xl overflow-hidden ${
-                        msg.role === 'assistant' ? 'text-md' : 'text-md'
-                      }`}
-                    >
-                      {msg.role === 'assistant' ? (
-                        <div className="prose prose-md dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-md dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-md prose-pre:overflow-x-auto">
-                          {msg.projectImage && (
-                            <motion.div 
-                              className="mb-4 max-w-full overflow-hidden rounded-lg"
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.5 }}
-                            >
-                              <img 
-                                src={msg.projectImage} 
-                                alt="Project Image" 
-                                className="w-full h-auto max-h-[300px] object-cover rounded-lg shadow-md" 
-                                loading="lazy"
-                                onLoad={() => console.log('Project image loaded successfully:', msg.projectImage)}
-                                onError={(e) => {
-                                  // Handle image loading errors gracefully
-                                  console.warn('Failed to load project image:', msg.projectImage);
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
-                            </motion.div>
-                          )}
-                          <div
-                            dangerouslySetInnerHTML={{ 
-                              __html: msg.content.replace(
-                                /```(\w+)?\n([\s\S]*?)```/g, 
-                                (_, lang, code) => `<pre><code class="language-${lang || ''}">${code.trim()}</code></pre>`
-                              ).replace(
-                                /<img[^>]*>/g, 
-                                '' // Remove any img tags from the AI response
-                              )
-                            }} 
-                          />
-                        </div>
-                      ) : (
-                        <p className="text-md dark:text-white text-neutral-900">{msg.content}</p>
-                      )}
-                    </div>
+                    </AnimatePresence>
                   </div>
-                ))}
-                
-                {/* Loading animation - inline with messages */}
-                {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-start gap-3 p-3 rounded-xl dark:bg-white/5 bg-black/5 backdrop-blur-md"
-                  >
-                    <div className="flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                      <svg 
-                        width="14" 
-                        height="14" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                        className="text-white"
-                      >
-                        <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12a10 10 0 0 1 10-10z" />
-                        <path d="M12 6v6l4 2" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 h-6 sm:h-7 flex items-center">
-                      <div className="flex space-x-2">
-                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                        <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-                
-                {/* Hidden div for auto-scrolling */}
-                <div ref={messagesEndRef} />
+                </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="mt-3">
-                <div className="relative">
-                  <Textarea
-                    placeholder="Ask me about Jordan..."
-                    value={message}
-                    onChange={(e) => {
-                      setMessage(e.target.value);
-                      // Dynamically adjust height within limits
-                      const textarea = e.target;
-                      textarea.style.height = 'auto';
-                      const newHeight = Math.min(textarea.scrollHeight, 150); // Max height ~4 lines
-                      textarea.style.height = `${newHeight}px`;
-                    }}
-                    onKeyDown={handleKeyDown}
-                    rows={2}
-                    style={{
-                      minHeight: "80px", // ~2 lines + padding
-                      height: "auto",
-                      boxSizing: "border-box"
-                    }}
-                    className="w-full py-2 sm:py-3 pl-3 pr-12 sm:pl-4 sm:pr-14 text-md bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30 focus:transform-none focus:scale-100"
-                  />
-                  <Button 
-                    type="submit" 
-                    variant="outline"
-                    className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow flex items-center gap-1 sm:gap-2 h-[28px] sm:h-[32px] z-10"
-                    disabled={isLoading || !message.trim()}
-                  >
-                    {isLoading ? 'Processing...' : <Send className="w-3 h-3 sm:w-4 sm:h-4" />}
-                  </Button>
+              {/* Simplified Quick Prompts */}
+              <div className="mb-4">
+                <div className="flex flex-wrap justify-center gap-2">
+                  {quickPrompts.map((prompt, index) => (
+                    <Button 
+                      key={index} 
+                      variant="outline" 
+                      className="text-sm rounded-xl flex items-center gap-1.5 dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all"
+                      onClick={prompt.action}
+                    >
+                      <prompt.icon className="w-3.5 h-3.5 opacity-70" />
+                      {prompt.text}
+                    </Button>
+                  ))}
                 </div>
-              </form>
-            </>
+              </div>
+            </motion.div>
           )}
-        </motion.div>
+        </AnimatePresence>
+
+        {/* Message list with auto-scroll - show when there are messages */}
+        {messages.length > 0 && (
+          <div className="mb-4 pr-2 space-y-3 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30 focus:transform-none focus:scale-100">
+            {messages.map((msg, index) => (
+              <div 
+                key={index} 
+                className={cn(
+                  "flex items-start gap-3 p-3 rounded-xl",
+                  msg.role === 'assistant' 
+                    ? "dark:bg-white/5 bg-black/5 backdrop-blur-md"
+                    : ""
+                )}
+              >
+                <div
+                  className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center ${
+                    msg.role === 'assistant'
+                      ? 'bg-gradient-to-br from-purple-500 to-blue-500'
+                      : 'bg-gradient-to-br from-blue-400 to-teal-400'
+                  }`}
+                >
+                  {msg.role === 'assistant' ? (
+                    <BrainCog className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                  ) : (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-white"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                </div>
+                <div
+                  className={`flex-1 rounded-xl overflow-hidden ${
+                    msg.role === 'assistant' ? 'text-md' : 'text-md'
+                  }`}
+                >
+                  {msg.role === 'assistant' ? (
+                    <div className="prose prose-md dark:prose-invert prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/10 prose-pre:p-2 prose-pre:rounded-lg max-w-none text-md dark:text-white text-neutral-900 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 prose-pre:text-md prose-pre:overflow-x-auto">
+                      {msg.projectImage && (
+                        <motion.div 
+                          className="mb-4 max-w-full overflow-hidden rounded-lg"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          <img 
+                            src={msg.projectImage} 
+                            alt="Project Image" 
+                            className="w-full h-auto max-h-[300px] object-cover rounded-lg shadow-md" 
+                            loading="lazy"
+                            onLoad={() => console.log('Project image loaded successfully:', msg.projectImage)}
+                            onError={(e) => {
+                              // Handle image loading errors gracefully
+                              console.warn('Failed to load project image:', msg.projectImage);
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </motion.div>
+                      )}
+                      <div
+                        dangerouslySetInnerHTML={{ 
+                          __html: msg.content.replace(
+                            /```(\w+)?\n([\s\S]*?)```/g, 
+                            (_, lang, code) => `<pre><code class="language-${lang || ''}">${code.trim()}</code></pre>`
+                          ).replace(
+                            /<img[^>]*>/g, 
+                            '' // Remove any img tags from the AI response
+                          )
+                        }} 
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-md dark:text-white text-neutral-900">{msg.content}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {/* Loading animation - inline with messages */}
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-start gap-3 p-3 rounded-xl dark:bg-white/5 bg-black/5 backdrop-blur-md"
+              >
+                <div className="flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                  <svg 
+                    width="14" 
+                    height="14" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    className="text-white"
+                  >
+                    <path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12a10 10 0 0 1 10-10z" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                </div>
+                <div className="flex-1 h-6 sm:h-7 flex items-center">
+                  <div className="flex space-x-2">
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            
+            {/* Hidden div for auto-scrolling */}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-3">
+          <div className="relative">
+            <Textarea
+              placeholder="Ask me about Jordan..."
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                // Dynamically adjust height within limits
+                const textarea = e.target;
+                textarea.style.height = 'auto';
+                const newHeight = Math.min(textarea.scrollHeight, 150); // Max height ~4 lines
+                textarea.style.height = `${newHeight}px`;
+              }}
+              onKeyDown={handleKeyDown}
+              rows={2}
+              style={{
+                minHeight: "80px", // ~2 lines + padding
+                height: "auto",
+                boxSizing: "border-box"
+              }}
+              className="w-full py-2 sm:py-3 pl-3 pr-12 sm:pl-4 sm:pr-14 text-md bg-black/3 dark:bg-white/5 border dark:border-white/10 border-black/10 rounded-xl dark:text-white text-neutral-900 resize-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-white/10 focus-visible:border-white/10 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 hover:[&::-webkit-scrollbar-thumb]:bg-black/30 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/30 focus:transform-none focus:scale-100"
+            />
+            <Button 
+              type="submit" 
+              variant="outline"
+              className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg dark:bg-white/5 bg-black/5 backdrop-blur-md border dark:border-white/10 border-black/10 dark:text-white text-neutral-900 hover:dark:bg-white/10 hover:bg-black/10 transition-all shadow-sm hover:shadow flex items-center gap-1 sm:gap-2 h-[28px] sm:h-[32px] z-10"
+              disabled={isLoading || !message.trim()}
+            >
+              {isLoading ? 'Processing...' : <Send className="w-3 h-3 sm:w-4 sm:h-4" />}
+            </Button>
+          </div>
+        </form>
       </div>
     </motion.div>
   );
