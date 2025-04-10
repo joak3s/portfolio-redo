@@ -27,7 +27,7 @@ const openAI = new OpenAI({
 // Define timeout for API requests
 const TIMEOUT_MS = 10000;
 const PROJECT_TIMEOUT_MS = 12000;  // Longer timeout for project-specific queries
-const GENERAL_TIMEOUT_MS = 6000;   // Shorter timeout for general queries
+const GENERAL_TIMEOUT_MS = 8000;   // Increased timeout for general queries
 
 /**
  * Get or create a conversation session
@@ -65,7 +65,9 @@ export function analyzeQueryIntent(query: string): { isProjectQuery: boolean; pr
     /what (tech(nical)?|programming|coding|development) (skills|technologies|tools|stack|languages)/i,
     /what (is|are) (your|jordan'?s) (tech(nical)?|programming|coding|development) (skills|technologies|tools|stack|languages)/i,
     /tell me about (your|jordan'?s) (skills|background|experience|education|design approach|approach)/i,
-    /what (is|are) (your|jordan'?s) (background|experience|education|design approach|approach)/i,
+    /what (is|are) (your|jordan'?s) (background|experience|education|design approach|approach|skills|vision|philosophy)/i,
+    /what skills (does|has) jordan/i,
+    /jordan'?s (skills|background|experience|education|vision|philosophy|toolkit|expertise)/i,
     /portfolio|resume|cv|qualifications|expertise|proficiency/i,
     /(who is|about) jordan/i
   ];
@@ -300,23 +302,108 @@ export async function POST(request: Request) {
       // For general queries, we can often bypass the hybrid search and just retrieve general info
       if (queryIntent.pattern === 'general_info') {
         console.log('Optimizing general info query with direct lookup');
-        const { data: generalInfo, error } = await supabase
-          .from('general_info')
-          .select('*')
-          .limit(3);
+        
+        try {
+          // First try to find category-specific information
+          let categoryMatch = null;
           
-        if (!error && generalInfo && generalInfo.length > 0) {
-          console.log(`Found ${generalInfo.length} general info entries directly`);
-          // Format the general info as search results
-          const directResults = generalInfo.map(info => ({
-            content: info.content,
-            content_type: 'general_info',
-            similarity: 1,
-            metadata: { id: info.id }
-          }));
+          // Look for category indicators in the query
+          const categoryKeywords = {
+            'Skills': ['skills', 'technologies', 'tech stack', 'languages', 'frameworks', 'toolkit', 'expertise'],
+            'Background': ['background', 'history', 'professional', 'career'],
+            'Education': ['education', 'degree', 'university', 'study', 'academic'],
+            'Philosophy': ['philosophy', 'approach', 'principles', 'believes', 'design thinking'],
+            'Experience': ['experience', 'work history', 'professional', 'projects'],
+            'Vision': ['vision', 'future', 'ai', 'artificial intelligence'],
+            'Values': ['values', 'accessibility', 'commitment', 'priorities'],
+            'Methodology': ['methodology', 'workflow', 'process', 'approach'],
+            'Career': ['career', 'work', 'professional'],
+            'Personal Interests': ['interests', 'personal', 'hobbies', 'rugby', 'sports']
+          };
           
-          // Continue processing with these direct results
-          return await continueWithSearchResults(directResults, prompt, sessionKey, includeHistory, requestTimeout, queryIntent, startTime);
+          // Debug the current query
+          console.log(`Parsing query for category: "${prompt}"`);
+          
+          // Check for category matches in the query
+          for (const [category, keywords] of Object.entries(categoryKeywords)) {
+            if (keywords.some(keyword => prompt.toLowerCase().includes(keyword.toLowerCase()))) {
+              categoryMatch = category;
+              console.log(`Found category match: ${category} (matched keyword in: ${keywords})`);
+              break;
+            }
+          }
+          
+          // If no specific category match but we have a general query, try to infer category
+          if (!categoryMatch) {
+            // Common general queries to map to categories
+            if (prompt.toLowerCase().includes('vision') || 
+                prompt.toLowerCase().includes('ai') || 
+                prompt.toLowerCase().includes('artificial intelligence')) {
+              categoryMatch = 'Vision';
+              console.log('Inferred Vision category from query keywords');
+            } else if (prompt.toLowerCase().includes('skill') || 
+                      prompt.toLowerCase().includes('can do') || 
+                      prompt.toLowerCase().includes('expertise')) {
+              categoryMatch = 'Skills';
+              console.log('Inferred Skills category from query keywords');
+            }
+          }
+          
+          let queryBuilder = supabase
+            .from('general_info')
+            .select('*');
+            
+          // If we found a category match, prioritize that category
+          if (categoryMatch) {
+            console.log(`Using category match: ${categoryMatch}`);
+            queryBuilder = queryBuilder
+              .eq('category', categoryMatch)
+              .limit(5);
+          } else {
+            // Otherwise, do a more general search
+            console.log('No specific category match found, using general search');
+            queryBuilder = queryBuilder
+              .limit(5);
+          }
+          
+          const { data: generalInfo, error } = await queryBuilder;
+            
+          if (error) {
+            console.error('Error in direct general_info lookup:', error);
+            // Fall back to hybrid search if direct lookup fails
+          } else if (generalInfo && generalInfo.length > 0) {
+            console.log(`Found ${generalInfo.length} general info entries directly`);
+            // Log what was found for debugging
+            generalInfo.forEach(info => {
+              console.log(`- ${info.title} (${info.category}): ${info.content.substring(0, 30)}...`);
+            });
+            
+            // Format the general info as search results
+            const directResults = generalInfo.map(info => ({
+              content: {
+                id: info.id,
+                title: info.title,
+                type: 'general_info',
+                content: info.content,
+                category: info.category,
+                published: true
+              },
+              content_type: 'general_info',
+              similarity: 0.9, // High confidence for direct matches
+              metadata: { 
+                id: info.id,
+                category: info.category 
+              }
+            }));
+            
+            // Continue processing with these direct results
+            return await continueWithSearchResults(directResults, prompt, sessionKey, includeHistory, requestTimeout, queryIntent, startTime);
+          } else {
+            console.log('No matching general_info records found, falling back to hybrid search');
+          }
+        } catch (err) {
+          console.error('Error in direct general_info lookup:', err);
+          // Fall back to hybrid search if direct lookup fails
         }
       }
     }
